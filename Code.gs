@@ -374,7 +374,7 @@ function writeSection_(body, startMarker, endMarker, tag, sourceDocName, sourceD
   // Color swatch using a full-width block character.
   hText.insertText(0, '  ' + tag.name + ' — ' + sourceDocName);
   hText.setBackgroundColor(0, 0, tag.color);
-  hText.setForegroundColor(1, tag.name.length + sourceDocName.length + 5, '#222222');
+  hText.setForegroundColor(1, hText.getText().length - 1, '#222222');
 
   // Source link + timestamp (small italic).
   const meta = body.appendParagraph('Source: ' + sourceDocUrl + '   |   Synced: ' + new Date().toLocaleString());
