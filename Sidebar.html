@@ -584,7 +584,7 @@
             setHeaderStatus('');
             showStatus('status-top', err.message, 'error');
           })
-          .syncAllTags();
+          .syncAllTags(Intl.DateTimeFormat().resolvedOptions().timeZone);
       })
       .withFailureHandler(function (err) {
         setHeaderLoading(false);

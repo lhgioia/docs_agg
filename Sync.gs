@@ -52,9 +52,13 @@ function syncAndSummarize() {
   return { summary, results, errors };
 }
 
-/** Syncs all defined tags. Scans the document once and caches agg doc handles. */
-function syncAllTags() {
-  return syncTagsWithScan_(getTags(), scanDocumentForTagElements_());
+/**
+ * Syncs all defined tags. Scans the document once and caches agg doc handles.
+ * @param {string} [timezone] IANA timezone from the user's browser, used for
+ *                            the aggregation doc timestamp line.
+ */
+function syncAllTags(timezone) {
+  return syncTagsWithScan_(getTags(), scanDocumentForTagElements_(), timezone);
 }
 
 /**
@@ -95,7 +99,7 @@ function syncTagToAggDoc(tagId) {
  * Core sync loop. Accepts a pre-scanned element map so the document is not
  * re-scanned for each tag. Opens each unique aggregation doc at most once.
  */
-function syncTagsWithScan_(tags, scanEl) {
+function syncTagsWithScan_(tags, scanEl, timezone) {
   const sourceDoc = DocumentApp.getActiveDocument();
   const sourceDocId = sourceDoc.getId();
   const sourceDocName = sourceDoc.getName();
@@ -126,7 +130,7 @@ function syncTagsWithScan_(tags, scanEl) {
 
       if (excerpts.length > 0) {
         upsertSection_(body, startMarker, endMarker, tag,
-          sourceDocName, sourceDocUrl, sourceDocId, excerpts);
+          sourceDocName, sourceDocUrl, sourceDocId, excerpts, timezone);
       }
       results[tagId] = { synced: excerpts.length };
     } catch (e) {
@@ -144,7 +148,7 @@ function syncTagsWithScan_(tags, scanEl) {
  * are never removed), then re-inserts fresh content.
  * On first write: appends markers and content at the end of the body.
  */
-function upsertSection_(body, startMarker, endMarker, tag, sourceDocName, sourceDocUrl, sourceDocId, excerpts) {
+function upsertSection_(body, startMarker, endMarker, tag, sourceDocName, sourceDocUrl, sourceDocId, excerpts, timezone) {
   let startIdx = -1;
   let endIdx = -1;
 
@@ -187,7 +191,7 @@ function upsertSection_(body, startMarker, endMarker, tag, sourceDocName, source
   const filePath = getFilePath_(sourceDocId, ts.parentFolders) || sourceDocName;
   const linkText = '[' + filePath + ']';
   const tagText  = '[' + tag.name + ']';
-  const metaStr  = linkText + '   ' + tagText + '   ' + formatTimestamp_(new Date(), ts.dateFormat);
+  const metaStr  = linkText + '   ' + tagText + '   ' + formatTimestamp_(new Date(), ts.dateFormat, timezone);
   const meta     = body.insertParagraph(insertIdx++, metaStr);
   const metaTxt  = meta.editAsText();
   metaTxt.setFontSize(ts.fontSize).setForegroundColor(ts.textColor);

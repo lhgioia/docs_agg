@@ -42,25 +42,18 @@ function getFilePath_(fileId, depth) {
   return result;
 }
 
-/** Formats a Date for the aggregation doc timestamp line. */
-function formatTimestamp_(date, format) {
-  if (format === 'iso') {
-    const pad = n => String(n).padStart(2, '0');
-    return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) +
-           ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes());
-  }
-  if (format === 'date-only') {
-    return (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.getFullYear();
-  }
-  if (format === 'short') {
-    let h = date.getHours();
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    const m = String(date.getMinutes()).padStart(2, '0');
-    return (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.getFullYear() +
-           ' ' + h + ':' + m + ' ' + ampm;
-  }
-  return date.toLocaleString().replace(',', '');
+/**
+ * Formats a Date for the aggregation doc timestamp line.
+ * @param {Date}   date
+ * @param {string} format   — 'locale' | 'short' | 'date-only' | 'iso'
+ * @param {string} timezone — IANA timezone string (e.g. 'America/Los_Angeles')
+ */
+function formatTimestamp_(date, format, timezone) {
+  const tz = timezone || Session.getScriptTimeZone();
+  if (format === 'iso')       return Utilities.formatDate(date, tz, 'yyyy-MM-dd HH:mm');
+  if (format === 'date-only') return Utilities.formatDate(date, tz, 'M/d/yyyy');
+  // 'short' and 'locale' both show date + time
+  return Utilities.formatDate(date, tz, 'M/d/yyyy h:mm a');
 }
 
 /** Extracts a Google Docs file ID from a URL, or returns the value as-is. */
