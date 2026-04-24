@@ -243,13 +243,11 @@ function syncTagToAggDoc(tagId) {
   const startMarker = `[DOCSAGG:${tagId}:${sourceDocId}]`;
   const endMarker = `[/DOCSAGG:${tagId}:${sourceDocId}]`;
 
-  removeSectionByMarkers_(body, startMarker, endMarker);
-
   if (excerpts.length > 0) {
-    writeSection_(
-      body, startMarker, endMarker, tag,
-      sourceDoc.getName(), sourceDoc.getUrl(), excerpts
-    );
+    upsertSection_(body, startMarker, endMarker, tag,
+      sourceDoc.getName(), sourceDoc.getUrl(), excerpts);
+  } else {
+    removeSection_(body, startMarker, endMarker);
   }
 
   return { synced: excerpts.length };
@@ -287,71 +285,124 @@ function extractDocId_(urlOrId) {
 }
 
 /**
- * Finds and removes all body children between (and including) the start/end
- * marker paragraphs. Safe against the body having only one child.
+ * Creates or updates a tagged section in the aggregation document.
+ *
+ * On update: clears only the content *between* the marker paragraphs (the
+ * markers themselves are never removed), then re-inserts fresh content.
+ * This avoids the "can't remove last paragraph" error entirely because the
+ * markers always remain as surviving paragraphs.
+ *
+ * On first write: appends markers and content at the end of the body.
  */
-function removeSectionByMarkers_(body, startMarker, endMarker) {
-  const toRemove = [];
-  let inSection = false;
+function upsertSection_(body, startMarker, endMarker, tag, sourceDocName, sourceDocUrl, excerpts) {
+  let startIdx = -1;
+  let endIdx = -1;
 
   for (let i = 0; i < body.getNumChildren(); i++) {
     const child = body.getChild(i);
     if (child.getType() === DocumentApp.ElementType.PARAGRAPH) {
       const t = child.asParagraph().getText();
-      if (t === startMarker) { inSection = true;  toRemove.push(child); continue; }
-      if (t === endMarker)   { toRemove.push(child); inSection = false; continue; }
+      if (t === startMarker) startIdx = i;
+      else if (t === endMarker) endIdx = i;
     }
-    if (inSection) toRemove.push(child);
   }
 
-  toRemove.forEach(el => {
-    if (body.getNumChildren() > 1) {
-      body.removeChild(el);
-    } else {
-      try { el.asParagraph().setText(''); } catch (e) {}
-    }
-  });
-}
+  let insertIdx; // index at which to start inserting content paragraphs
 
-/** Appends a tagged section to the aggregation document body. */
-function writeSection_(body, startMarker, endMarker, tag, sourceDocName, sourceDocUrl, excerpts) {
-  if (body.getText().trim().length > 0) {
-    body.appendHorizontalRule();
+  if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
+    // Section exists. Remove everything between the markers (high → low so
+    // indices stay valid as elements are removed).
+    for (let i = endIdx - 1; i > startIdx; i--) {
+      body.removeChild(body.getChild(i));
+    }
+    // Markers are now adjacent: startIdx = start, startIdx+1 = end.
+    // Insert content before the end marker.
+    insertIdx = startIdx + 1;
+  } else {
+    // No existing section — append markers at the end.
+    if (body.getText().trim().length > 0) {
+      body.appendHorizontalRule();
+    }
+
+    const sP = body.appendParagraph(startMarker);
+    sP.editAsText().setFontSize(6).setForegroundColor('#CCCCCC');
+    sP.setSpacingAfter(0);
+
+    const eP = body.appendParagraph(endMarker);
+    eP.editAsText().setFontSize(6).setForegroundColor('#CCCCCC');
+    eP.setSpacingBefore(0);
+
+    // End marker is the last child; insert content before it.
+    insertIdx = body.getNumChildren() - 1;
   }
 
-  // Hidden start marker.
-  const sP = body.appendParagraph(startMarker);
-  sP.editAsText().setFontSize(6).setForegroundColor('#CCCCCC');
-  sP.setSpacingAfter(0);
-
-  // Section heading with color swatch character + tag name + source doc.
-  const heading = body.appendParagraph('');
+  // Insert heading.
+  const heading = body.insertParagraph(insertIdx++, '');
   heading.setHeading(DocumentApp.ParagraphHeading.HEADING2);
   heading.setSpacingBefore(8);
   const hText = heading.editAsText();
   hText.insertText(0, '  ' + tag.name + ' — ' + sourceDocName);
   hText.setBackgroundColor(0, 0, tag.color);
-  hText.setForegroundColor(1, hText.getText().length - 1, '#222222');
+  if (hText.getText().length > 1) {
+    hText.setForegroundColor(1, hText.getText().length - 1, '#222222');
+  }
 
-  // Source link + timestamp.
-  const meta = body.appendParagraph(
+  // Insert source + timestamp line.
+  const meta = body.insertParagraph(
+    insertIdx++,
     'Source: ' + sourceDocUrl + '   |   Synced: ' + new Date().toLocaleString()
   );
   meta.editAsText().setFontSize(8).setForegroundColor('#777777').setItalic(true);
   meta.setSpacingAfter(6);
 
-  // Excerpts.
-  excerpts.forEach(({ text }) => {
-    const p = body.appendParagraph(text);
+  // Insert excerpts.
+  excerpts.forEach(function ({ text }) {
+    const p = body.insertParagraph(insertIdx++, text);
     p.setHeading(DocumentApp.ParagraphHeading.NORMAL);
     p.setIndentStart(18);
     p.setSpacingBefore(4);
     p.setSpacingAfter(4);
     p.editAsText().setBackgroundColor(tag.color).setFontSize(11);
   });
+}
 
-  // Hidden end marker.
-  const eP = body.appendParagraph(endMarker);
-  eP.editAsText().setFontSize(6).setForegroundColor('#CCCCCC');
-  eP.setSpacingBefore(0);
+/**
+ * Removes an entire section (markers + content) when there are no excerpts
+ * to sync. Uses high-to-low index removal so indices stay valid after each
+ * removal. Appends a blank paragraph first if removing the section would
+ * leave the body with no paragraphs at all.
+ */
+function removeSection_(body, startMarker, endMarker) {
+  let startIdx = -1;
+  let endIdx = -1;
+
+  for (let i = 0; i < body.getNumChildren(); i++) {
+    const child = body.getChild(i);
+    if (child.getType() === DocumentApp.ElementType.PARAGRAPH) {
+      const t = child.asParagraph().getText();
+      if (t === startMarker) startIdx = i;
+      else if (t === endMarker) endIdx = i;
+    }
+  }
+
+  if (startIdx === -1 || endIdx === -1 || startIdx >= endIdx) return;
+
+  // Count paragraphs outside the section.
+  let paragraphsOutside = 0;
+  for (let i = 0; i < body.getNumChildren(); i++) {
+    if (i >= startIdx && i <= endIdx) continue;
+    if (body.getChild(i).getType() === DocumentApp.ElementType.PARAGRAPH) {
+      paragraphsOutside++;
+    }
+  }
+
+  // Guard: if nothing outside, ensure a paragraph remains after removal.
+  if (paragraphsOutside === 0) {
+    body.appendParagraph(''); // appended beyond endIdx, safe from the loop below
+  }
+
+  // Remove from high to low so earlier indices stay valid.
+  for (let i = endIdx; i >= startIdx; i--) {
+    body.removeChild(body.getChild(i));
+  }
 }
