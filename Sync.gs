@@ -1,8 +1,65 @@
 // ── Sync ──────────────────────────────────────────────────────────────────────
 
 /**
- * Syncs excerpts for a defined tag to its aggregation document.
- * The section in the aggregation doc is replaced on every call (idempotent).
+ * Single server call that combines getDocumentTagSummary + syncAllTags.
+ *
+ * Scans the document exactly once. The element references from that scan are
+ * used to build the sidebar summary (text) and to perform all tag syncs, so
+ * there is no redundant scanning. Each unique aggregation doc is also opened
+ * at most once per call.
+ *
+ * Returns { summary, results, errors } where summary matches the shape
+ * returned by getDocumentTagSummary.
+ */
+function syncAndSummarize() {
+  const tags = getTags();
+
+  // Single document scan shared by summary and all syncs.
+  const scanEl = scanDocumentForTagElements_();
+
+  // Build name→tag map for summary and link application.
+  const nameToTag = {};
+  Object.entries(tags).forEach(([id, tag]) => {
+    nameToTag[tag.name.toLowerCase()] = { id, ...tag };
+  });
+
+  // Build summary (same shape as getDocumentTagSummary).
+  const inDocument = Object.entries(scanEl).map(([name, items]) => {
+    const excerpts = items.map(item => item.element.getText().trim());
+    const linked = nameToTag[name.toLowerCase()] || null;
+    return {
+      name,
+      excerpts,
+      defined: !!linked,
+      tagId: linked ? linked.id : null,
+      aggregationDocId: linked ? linked.aggregationDocId : null,
+      aggregationDocName: linked ? linked.aggregationDocName : null,
+    };
+  });
+
+  const docTagNames = new Set(Object.keys(scanEl).map(n => n.toLowerCase()));
+  const notInDocument = Object.entries(tags)
+    .filter(([, tag]) => !docTagNames.has(tag.name.toLowerCase()))
+    .map(([id, tag]) => ({ tagId: id, ...tag }));
+
+  applyTagMarkerLinks_(nameToTag);
+
+  const summary = { inDocument, notInDocument };
+
+  // Sync all linked tags using the pre-scanned element data.
+  const { results, errors } = syncTagsWithScan_(tags, scanEl);
+
+  return { summary, results, errors };
+}
+
+/** Syncs all defined tags. Scans the document once and caches agg doc handles. */
+function syncAllTags() {
+  return syncTagsWithScan_(getTags(), scanDocumentForTagElements_());
+}
+
+/**
+ * Syncs excerpts for a single tag to its aggregation document.
+ * Used when only one tag needs to be updated.
  */
 function syncTagToAggDoc(tagId) {
   const tags = getTags();
@@ -27,29 +84,58 @@ function syncTagToAggDoc(tagId) {
   if (excerpts.length > 0) {
     upsertSection_(body, startMarker, endMarker, tag,
       sourceDoc.getName(), sourceDoc.getUrl(), sourceDocId, excerpts);
-  } else {
-    removeSection_(body, startMarker, endMarker);
   }
 
   return { synced: excerpts.length };
 }
 
-/** Syncs all defined tags that appear in the active document. */
-function syncAllTags() {
-  const tags = getTags();
+// ── Private helpers ───────────────────────────────────────────────────────────
+
+/**
+ * Core sync loop. Accepts a pre-scanned element map so the document is not
+ * re-scanned for each tag. Opens each unique aggregation doc at most once.
+ */
+function syncTagsWithScan_(tags, scanEl) {
+  const sourceDoc = DocumentApp.getActiveDocument();
+  const sourceDocId = sourceDoc.getId();
+  const sourceDocName = sourceDoc.getName();
+  const sourceDocUrl = sourceDoc.getUrl();
+  const aggDocCache = {};
   const results = {};
   const errors = {};
-  Object.keys(tags).forEach(tagId => {
+
+  Object.entries(tags).forEach(([tagId, tag]) => {
+    if (!tag.aggregationDocId) return;
     try {
-      results[tagId] = syncTagToAggDoc(tagId);
+      const nameLower = tag.name.toLowerCase();
+      const entry = Object.entries(scanEl).find(([n]) => n.toLowerCase() === nameLower);
+      const excerpts = entry
+        ? entry[1].map(e => ({ text: e.element.getText().trim(), element: e.element, level: e.level }))
+        : [];
+
+      if (!aggDocCache[tag.aggregationDocId]) {
+        try {
+          aggDocCache[tag.aggregationDocId] = DocumentApp.openById(tag.aggregationDocId);
+        } catch (e) {
+          throw new Error('Could not open aggregation document: ' + e.message);
+        }
+      }
+      const body = aggDocCache[tag.aggregationDocId].getBody();
+      const startMarker = `[DOCSAGG:${tagId}:${sourceDocId}]`;
+      const endMarker = `[/DOCSAGG:${tagId}:${sourceDocId}]`;
+
+      if (excerpts.length > 0) {
+        upsertSection_(body, startMarker, endMarker, tag,
+          sourceDocName, sourceDocUrl, sourceDocId, excerpts);
+      }
+      results[tagId] = { synced: excerpts.length };
     } catch (e) {
-      errors[tagId] = e.message;
+      errors[tagId] = '"' + tag.name + '": ' + e.message;
     }
   });
+
   return { results, errors };
 }
-
-// ── Private: aggregation doc section helpers ──────────────────────────────────
 
 /**
  * Creates or updates a tagged section in the aggregation document.

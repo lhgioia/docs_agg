@@ -1,26 +1,45 @@
 // ── Shared utilities ──────────────────────────────────────────────────────────
 
+// Per-execution cache — reset automatically between google.script.run calls.
+const filePathCache_ = {};
+
 /**
  * Returns the file path up to `depth` parent directories deep, e.g.
  * depth=2 → "Grandparent/Parent/Filename".
  * Falls back to just the filename if parent folders are not accessible.
+ * Results are memoized for the duration of the current execution.
  */
 function getFilePath_(fileId, depth) {
   if (depth === undefined) depth = 2;
+  const key = fileId + ':' + depth;
+  if (key in filePathCache_) return filePathCache_[key];
+  let result;
   try {
     const file = DriveApp.getFileById(fileId);
     const name = file.getName();
-    if (depth === 0) return name;
-    const p1It = file.getParents();
-    if (!p1It.hasNext()) return name;
-    const p1 = p1It.next();
-    if (depth === 1) return p1.getName() + '/' + name;
-    const p2It = p1.getParents();
-    if (!p2It.hasNext()) return p1.getName() + '/' + name;
-    return p2It.next().getName() + '/' + p1.getName() + '/' + name;
+    if (depth === 0) {
+      result = name;
+    } else {
+      const p1It = file.getParents();
+      if (!p1It.hasNext()) {
+        result = name;
+      } else {
+        const p1 = p1It.next();
+        if (depth === 1) {
+          result = p1.getName() + '/' + name;
+        } else {
+          const p2It = p1.getParents();
+          result = p2It.hasNext()
+            ? p2It.next().getName() + '/' + p1.getName() + '/' + name
+            : p1.getName() + '/' + name;
+        }
+      }
+    }
   } catch (e) {
-    return null;
+    result = null;
   }
+  filePathCache_[key] = result;
+  return result;
 }
 
 /** Formats a Date for the aggregation doc timestamp line. */

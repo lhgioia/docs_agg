@@ -573,8 +573,7 @@
             const errCount = Object.keys(res.errors).length;
             if (errCount > 0) {
               setHeaderStatus('');
-              const synced = Object.values(res.results).reduce(function (s, r) { return s + r.synced; }, 0);
-              showStatus('status-top', synced + ' synced, ' + errCount + ' error(s) — check individual tags.', 'error');
+              showStatus('status-top', Object.values(res.errors).join('\n'), 'error');
             } else {
               const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
               setHeaderStatus('Synced at ' + time);
