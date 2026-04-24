@@ -27,6 +27,12 @@
     }
     .header-left { display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 500; }
     .header-right { display: flex; gap: 5px; }
+    .header-status {
+      font-size: 11px;
+      color: rgba(255,255,255,.8);
+      font-style: italic;
+      white-space: nowrap;
+    }
     .header-btn {
       background: rgba(255,255,255,.18);
       border: none;
@@ -164,21 +170,6 @@
       flex-wrap: wrap;
     }
 
-    /* ── Link form (for unlinked tags) ─────────────────────────────────────── */
-    .link-form {
-      border-top: 1px solid #e8e8e8;
-      margin-top: 10px;
-      padding-top: 10px;
-    }
-    .link-form-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: #5f6368;
-      text-transform: uppercase;
-      letter-spacing: .4px;
-      margin-bottom: 6px;
-    }
-
     /* ── Defined-but-not-in-doc list ───────────────────────────────────────── */
     .ghost-tag {
       display: flex;
@@ -310,6 +301,7 @@
       Sync
     </button>
   </div>
+  <span class="header-status" id="header-status"></span>
 </div>
 
 <div class="content">
@@ -392,13 +384,13 @@
 
   function loadSummary() {
     setHeaderLoading(true);
-    document.getElementById('in-doc-list').innerHTML =
-      '<div class="loading">Scanning document…</div>';
+    setHeaderStatus('Scanning document…');
 
     google.script.run
       .withSuccessHandler(renderSummary)
       .withFailureHandler(function (err) {
         setHeaderLoading(false);
+        setHeaderStatus('');
         document.getElementById('in-doc-list').innerHTML =
           '<div class="status error show">' + esc(err.message) + '</div>';
       })
@@ -407,6 +399,7 @@
 
   function renderSummary(summary) {
     setHeaderLoading(false);
+    setHeaderStatus('');
 
     // ── In-document tags ──
     const inDocEl = document.getElementById('in-doc-list');
@@ -460,7 +453,7 @@
 
     const badge = document.createElement('span');
     badge.className = 'badge' + (item.defined ? '' : ' badge-warn');
-    badge.textContent = item.excerpts.length;
+    badge.textContent = item.excerpts.length + ' lines';
     badge.title = item.excerpts.length + ' excerpt' + (item.excerpts.length === 1 ? '' : 's');
 
     const chevron = document.createElement('span');
@@ -481,62 +474,89 @@
     const body = document.createElement('div');
     body.className = 'tag-card-body';
 
-    // Excerpt list.
-    if (item.excerpts.length === 0) {
-      const none = document.createElement('div');
-      none.className = 'no-excerpts';
-      none.textContent = 'No child items found under [' + item.name + '].';
-      body.appendChild(none);
-    } else {
-      const ul = document.createElement('ul');
-      ul.className = 'excerpt-list';
-      item.excerpts.forEach(function (text) {
-        const li = document.createElement('li');
-        li.className = 'excerpt-item';
-        li.textContent = text.length > 220 ? text.slice(0, 217) + '…' : text;
-        ul.appendChild(li);
-      });
-      body.appendChild(ul);
+    // Aggregation doc section.
+    const aggLabel = document.createElement('div');
+    aggLabel.style.cssText = 'font-size:11px;font-weight:600;color:#5f6368;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;';
+    aggLabel.textContent = 'Aggregation Doc';
+    body.appendChild(aggLabel);
+
+    const isLinked = item.defined && item.aggregationDocId;
+
+    // --- Linked view: named link + X ---
+    const linkedView = document.createElement('div');
+    linkedView.style.cssText = 'display:' + (isLinked ? 'flex' : 'none') + ';align-items:center;gap:6px;';
+
+    const docLink = document.createElement('a');
+    docLink.style.cssText = 'font-size:12px;color:#1a73e8;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    docLink.target = '_blank';
+    if (item.aggregationDocId) {
+      docLink.href = 'https://docs.google.com/document/d/' + item.aggregationDocId + '/edit';
+      docLink.textContent = item.aggregationDocName || item.aggregationDocId;
     }
 
-    // Actions.
-    const actions = document.createElement('div');
-    actions.className = 'card-actions';
+    const removeBtn = document.createElement('button');
+    removeBtn.style.cssText = 'background:none;border:none;color:#bbb;cursor:pointer;font-size:13px;padding:0 2px;line-height:1;flex-shrink:0;';
+    removeBtn.textContent = '✕';
+    removeBtn.title = 'Change aggregation doc';
+    removeBtn.onmouseenter = function () { this.style.color = '#d93025'; };
+    removeBtn.onmouseleave = function () { this.style.color = '#bbb'; };
 
-    if (item.defined && item.tagId) {
-      const syncBtn = document.createElement('button');
-      syncBtn.className = 'btn btn-success';
-      syncBtn.textContent = '↑ Sync to Agg Doc';
-      const tagId = item.tagId;
-      syncBtn.onclick = function (e) { e.stopPropagation(); syncTag(tagId, item.name, body); };
-      actions.appendChild(syncBtn);
+    linkedView.appendChild(docLink);
+    linkedView.appendChild(removeBtn);
 
-      const unlinkBtn = document.createElement('button');
-      unlinkBtn.className = 'btn btn-danger';
-      unlinkBtn.textContent = '✕ Unlink';
-      unlinkBtn.title = 'Remove tag definition (does not affect document)';
-      unlinkBtn.onclick = function (e) {
-        e.stopPropagation();
-        if (confirm('Remove the link for "' + item.name + '"?\n\nThis only removes the aggregation doc association. Your [' + item.name + '] list items stay intact.')) {
-          deleteTag(tagId);
-        }
-      };
-      actions.appendChild(unlinkBtn);
+    // --- Edit view: URL input + Save ---
+    const editView = document.createElement('div');
+    editView.style.display = isLinked ? 'none' : 'block';
 
-      // Per-sync status.
-      const statusEl = document.createElement('div');
-      statusEl.className = 'status';
-      statusEl.style.width = '100%';
-      body.appendChild(actions);
-      body.appendChild(statusEl);
-      // Store reference so syncTag can find it.
-      body.dataset.statusId = 'status-' + tagId;
-      statusEl.id = 'status-' + tagId;
-    } else {
-      // Unlinked — show inline link form.
-      body.appendChild(actions);
-      body.appendChild(buildLinkForm(item.name));
+    const urlInput = document.createElement('input');
+    urlInput.type = 'url';
+    urlInput.placeholder = 'Paste Google Docs URL';
+    urlInput.style.cssText = 'width:100%;border:1px solid #dadce0;border-radius:6px;padding:6px 10px;font-size:13px;margin-bottom:8px;box-sizing:border-box;';
+    if (item.aggregationDocId) {
+      urlInput.value = 'https://docs.google.com/document/d/' + item.aggregationDocId + '/edit';
     }
+    editView.appendChild(urlInput);
+
+    const statusEl = document.createElement('div');
+    statusEl.className = 'status';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'btn btn-primary';
+    saveBtn.style.cssText = 'width:100%;justify-content:center;';
+    saveBtn.textContent = item.defined ? 'Save' : 'Link Tag';
+    saveBtn.onclick = function () {
+      const url = urlInput.value.trim();
+      if (!url) { showEl(statusEl, 'Enter an aggregation doc URL.', 'error'); return; }
+      showEl(statusEl, 'Saving…', 'info');
+      saveBtn.disabled = true;
+      google.script.run
+        .withSuccessHandler(function (result) {
+          saveBtn.disabled = false;
+          statusEl.className = 'status';
+          docLink.href = 'https://docs.google.com/document/d/' + result.aggregationDocId + '/edit';
+          docLink.textContent = result.aggregationDocName || result.aggregationDocId;
+          linkedView.style.display = 'flex';
+          editView.style.display = 'none';
+        })
+        .withFailureHandler(function (err) {
+          saveBtn.disabled = false;
+          showEl(statusEl, err.message, 'error');
+        })
+        .createTag(item.name, url);
+    };
+
+    editView.appendChild(saveBtn);
+    editView.appendChild(statusEl);
+
+    // X toggles to edit view
+    removeBtn.onclick = function (e) {
+      e.stopPropagation();
+      linkedView.style.display = 'none';
+      editView.style.display = 'block';
+    };
+
+    body.appendChild(linkedView);
+    body.appendChild(editView);
 
     // Toggle expand/collapse.
     header.onclick = function () {
@@ -548,53 +568,6 @@
     card.appendChild(header);
     card.appendChild(body);
     return card;
-  }
-
-  // ── Inline link form for unlinked tags ───────────────────────────────────────
-
-  function buildLinkForm(tagName) {
-    const form = document.createElement('div');
-    form.className = 'link-form';
-
-    const lbl = document.createElement('div');
-    lbl.className = 'link-form-label';
-    lbl.textContent = 'Link to Aggregation Doc';
-    form.appendChild(lbl);
-
-    const urlInput = document.createElement('input');
-    urlInput.type = 'url';
-    urlInput.placeholder = 'Paste Google Docs URL';
-    urlInput.style.cssText = 'width:100%;border:1px solid #dadce0;border-radius:6px;padding:6px 10px;font-size:13px;margin-bottom:8px;';
-    form.appendChild(urlInput);
-
-    const statusEl = document.createElement('div');
-    statusEl.className = 'status';
-
-    const linkBtn = document.createElement('button');
-    linkBtn.className = 'btn btn-primary';
-    linkBtn.style.cssText = 'margin-top:8px;width:100%;justify-content:center;';
-    linkBtn.textContent = 'Link Tag';
-    linkBtn.onclick = function () {
-      const url = urlInput.value.trim();
-      if (!url) { showEl(statusEl, 'Enter an aggregation doc URL.', 'error'); return; }
-      showEl(statusEl, 'Linking…', 'info');
-      linkBtn.disabled = true;
-      google.script.run
-        .withSuccessHandler(function () {
-          linkBtn.disabled = false;
-          showEl(statusEl, 'Linked! Refreshing…', 'success');
-          setTimeout(loadSummary, 700);
-        })
-        .withFailureHandler(function (err) {
-          linkBtn.disabled = false;
-          showEl(statusEl, err.message, 'error');
-        })
-        .createTag(tagName, url);
-    };
-
-    form.appendChild(linkBtn);
-    form.appendChild(statusEl);
-    return form;
   }
 
   // ── Ghost tag (defined but not in doc) ───────────────────────────────────────
@@ -629,33 +602,14 @@
 
   // ── Sync ──────────────────────────────────────────────────────────────────────
 
-  function syncTag(tagId, tagName, cardBodyEl) {
-    const statusEl = document.getElementById('status-' + tagId);
-    if (statusEl) showEl(statusEl, 'Syncing…', 'info');
-    setHeaderLoading(true);
-
-    google.script.run
-      .withSuccessHandler(function (result) {
-        setHeaderLoading(false);
-        if (statusEl) showEl(statusEl,
-          '✓ Synced ' + result.synced + ' excerpt' + (result.synced === 1 ? '' : 's') + '.',
-          'success'
-        );
-      })
-      .withFailureHandler(function (err) {
-        setHeaderLoading(false);
-        if (statusEl) showEl(statusEl, err.message, 'error');
-      })
-      .syncTagToAggDoc(tagId);
-  }
-
   function syncAll() {
     setHeaderLoading(true);
-    showStatus('status-sync-all', 'Syncing all linked tags…', 'info');
+    setHeaderStatus('Syncing…');
 
     google.script.run
       .withSuccessHandler(function (res) {
         setHeaderLoading(false);
+        setHeaderStatus('');
         const synced = Object.values(res.results).reduce(function (s, r) { return s + r.synced; }, 0);
         const errCount = Object.keys(res.errors).length;
         let msg = '✓ ' + synced + ' excerpt' + (synced === 1 ? '' : 's') + ' synced.';
@@ -664,6 +618,7 @@
       })
       .withFailureHandler(function (err) {
         setHeaderLoading(false);
+        setHeaderStatus('');
         showStatus('status-sync-all', err.message, 'error');
       })
       .syncAllTags();
@@ -721,6 +676,10 @@
   function setHeaderLoading(on) {
     document.getElementById('btn-refresh').disabled = on;
     document.getElementById('btn-sync-all').disabled = on;
+  }
+
+  function setHeaderStatus(msg) {
+    document.getElementById('header-status').textContent = msg;
   }
 
   function showStatus(id, msg, type) {

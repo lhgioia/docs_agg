@@ -60,8 +60,9 @@ function createTag(name, aggDocUrl) {
 
   const aggDocId = extractDocId_(aggDocUrl);
 
+  let aggDocName;
   try {
-    DocumentApp.openById(aggDocId);
+    aggDocName = DocumentApp.openById(aggDocId).getName();
   } catch (e) {
     throw new Error(
       'Cannot access the aggregation document. Check the URL and your edit access.'
@@ -80,6 +81,7 @@ function createTag(name, aggDocUrl) {
   tags[tagId] = {
     name,
     aggregationDocId: aggDocId,
+    aggregationDocName: aggDocName,
     createdAt: (tags[tagId] && tags[tagId].createdAt) || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -178,8 +180,8 @@ function getDocumentTagSummary() {
       excerpts,
       defined: !!linked,
       tagId: linked ? linked.id : null,
-      color: linked ? linked.color : null,
       aggregationDocId: linked ? linked.aggregationDocId : null,
+      aggregationDocName: linked ? linked.aggregationDocName : null,
     };
   });
 
