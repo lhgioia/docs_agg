@@ -306,10 +306,13 @@
 
 <div class="content">
 
+  <!-- ── Initial loader (first open only) ──────────────────────────────────── -->
+  <div id="initial-loader" class="loading" style="padding:20px 4px;text-align:center;">Loading…</div>
+
   <!-- ── Tags found in document ─────────────────────────────────────────────── -->
-  <div>
+  <div id="in-doc-section" style="display:none;">
     <div class="section-label">Tags in this doc</div>
-    <div id="in-doc-list"><div class="loading">Scanning document…</div></div>
+    <div id="in-doc-list"></div>
   </div>
 
   <!-- ── New tag button ─────────────────────────────────────────────────────── -->
@@ -373,6 +376,7 @@
 
   // Currently open card name.
   let openCard = null;
+  let initialLoad = true;
 
   // ── Init ─────────────────────────────────────────────────────────────────────
 
@@ -391,6 +395,7 @@
       .withFailureHandler(function (err) {
         setHeaderLoading(false);
         setHeaderStatus('');
+        revealDocSection();
         document.getElementById('in-doc-list').innerHTML =
           '<div class="status error show">' + esc(err.message) + '</div>';
       })
@@ -400,6 +405,7 @@
   function renderSummary(summary) {
     setHeaderLoading(false);
     setHeaderStatus('');
+    revealDocSection();
 
     // ── In-document tags ──
     const inDocEl = document.getElementById('in-doc-list');
@@ -672,6 +678,14 @@
   }
 
   // ── Utilities ─────────────────────────────────────────────────────────────────
+
+  function revealDocSection() {
+    if (initialLoad) {
+      initialLoad = false;
+      document.getElementById('initial-loader').style.display = 'none';
+      document.getElementById('in-doc-section').style.display = 'block';
+    }
+  }
 
   function setHeaderLoading(on) {
     document.getElementById('btn-refresh').disabled = on;
