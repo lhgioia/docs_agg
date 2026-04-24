@@ -17,6 +17,14 @@
  */
 
 const TAGS_PROP_KEY = 'DOCSAGG_TAGS_V1';
+const TIMESTAMP_SETTINGS_KEY = 'DOCSAGG_TS_V1';
+const TIMESTAMP_DEFAULTS_ = {
+  fontSize: 11,
+  parentFolders: 2,
+  linkColor: '#1155CC',
+  textColor: '#777777',
+  dateFormat: 'locale',
+};
 
 // ── Add-on lifecycle ──────────────────────────────────────────────────────────
 
@@ -96,6 +104,18 @@ function deleteTag(tagId) {
   if (!tags[tagId]) throw new Error('Tag not found.');
   delete tags[tagId];
   saveTags_(tags);
+}
+
+// ── Timestamp settings ────────────────────────────────────────────────────────
+
+function getTimestampSettings() {
+  const raw = PropertiesService.getUserProperties().getProperty(TIMESTAMP_SETTINGS_KEY);
+  return Object.assign({}, TIMESTAMP_DEFAULTS_, raw ? JSON.parse(raw) : {});
+}
+
+function saveTimestampSettings(settings) {
+  PropertiesService.getUserProperties().setProperty(TIMESTAMP_SETTINGS_KEY, JSON.stringify(settings));
+  return getTimestampSettings();
 }
 
 // ── Document scanning ─────────────────────────────────────────────────────────
@@ -314,23 +334,46 @@ function getDocumentInfo() {
 // ── Private helpers ───────────────────────────────────────────────────────────
 
 /**
- * Returns the file path up to 2 parent directories deep, e.g.
- * "Grandparent/Parent/Filename". Falls back to just the filename if
- * parent folders are not accessible.
+ * Returns the file path up to `depth` parent directories deep, e.g.
+ * depth=2 → "Grandparent/Parent/Filename". Falls back to just the filename
+ * if parent folders are not accessible.
  */
-function getFilePath_(fileId) {
+function getFilePath_(fileId, depth) {
+  if (depth === undefined) depth = 2;
   try {
     const file = DriveApp.getFileById(fileId);
     const name = file.getName();
+    if (depth === 0) return name;
     const p1It = file.getParents();
     if (!p1It.hasNext()) return name;
     const p1 = p1It.next();
+    if (depth === 1) return p1.getName() + '/' + name;
     const p2It = p1.getParents();
     if (!p2It.hasNext()) return p1.getName() + '/' + name;
     return p2It.next().getName() + '/' + p1.getName() + '/' + name;
   } catch (e) {
     return null;
   }
+}
+
+function formatTimestamp_(date, format) {
+  if (format === 'iso') {
+    const pad = n => String(n).padStart(2, '0');
+    return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) +
+           ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+  }
+  if (format === 'date-only') {
+    return (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.getFullYear();
+  }
+  if (format === 'short') {
+    let h = date.getHours();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    const m = String(date.getMinutes()).padStart(2, '0');
+    return (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.getFullYear() +
+           ' ' + h + ':' + m + ' ' + ampm;
+  }
+  return date.toLocaleString().replace(',', '');
 }
 
 function extractDocId_(urlOrId) {
@@ -391,16 +434,16 @@ function upsertSection_(body, startMarker, endMarker, tag, sourceDocName, source
   }
 
   // Insert source + timestamp line.
-  // Link text is the file path (up to 2 parent dirs), followed by sync date and tag name.
-  const filePath   = getFilePath_(sourceDocId) || sourceDocName;
+  const ts         = getTimestampSettings();
+  const filePath   = getFilePath_(sourceDocId, ts.parentFolders) || sourceDocName;
   const linkText   = '[' + filePath + ']';
   const tagText    = '[' + tag.name + ']';
-  const metaStr    = linkText + '   ' + tagText + '   ' + new Date().toLocaleString().replace(',', '');
+  const metaStr    = linkText + '   ' + tagText + '   ' + formatTimestamp_(new Date(), ts.dateFormat);
   const meta       = body.insertParagraph(insertIdx++, metaStr);
   const metaText   = meta.editAsText();
-  metaText.setFontSize(11).setForegroundColor('#777777');
+  metaText.setFontSize(ts.fontSize).setForegroundColor(ts.textColor);
   metaText.setLinkUrl(0, linkText.length - 1, sourceDocUrl);
-  metaText.setForegroundColor(0, linkText.length - 1, '#1155CC');
+  metaText.setForegroundColor(0, linkText.length - 1, ts.linkColor);
   meta.setSpacingAfter(6);
 
   // Insert excerpts using element.copy() so all inline formatting, glyph type,

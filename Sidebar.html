@@ -274,24 +274,98 @@
 
     /* ── Loading ────────────────────────────────────────────────────────────── */
     .loading { color: #80868b; font-size: 12px; padding: 12px 4px; }
+
+    /* ── Settings tabs ──────────────────────────────────────────────────────── */
+    .settings-tabs {
+      display: flex;
+      border-bottom: 2px solid #e0e0e0;
+      margin-bottom: 12px;
+    }
+    .settings-tab {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #5f6368;
+      cursor: pointer;
+    }
+    .settings-tab.active { color: #1a73e8; border-bottom-color: #1a73e8; }
+    .settings-tab:hover:not(.active) { color: #3c4043; background: #f1f3f4; }
+
+    /* ── Settings form ──────────────────────────────────────────────────────── */
+    .settings-field { margin-bottom: 12px; }
+    .settings-field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #5f6368;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 4px;
+    }
+    .settings-field input[type="number"],
+    .settings-field select {
+      width: 100%;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 13px;
+      color: #202124;
+      background: #fff;
+    }
+    .settings-field input[type="number"]:focus,
+    .settings-field select:focus { outline: none; border-color: #1a73e8; }
+    .settings-color-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .settings-color-row input[type="color"] {
+      width: 36px;
+      height: 32px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      padding: 2px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .settings-color-row input[type="text"] {
+      flex: 1;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 13px;
+      color: #202124;
+      font-family: monospace;
+    }
+    .settings-color-row input[type="text"]:focus,
+    .settings-color-row input[type="color"]:focus { outline: none; border-color: #1a73e8; }
   </style>
 </head>
 <body>
 
 <!-- ── Header ──────────────────────────────────────────────────────────────── -->
 <div class="header">
-  <div class="header-right">
-    <button class="header-btn" onclick="loadSummary()" id="btn-refresh" title="Rescan document">
-      Refresh
-    </button>
-    <button class="header-btn" onclick="syncAll()" id="btn-sync-all" title="Sync all linked tags">
-      Sync
-    </button>
+  <!-- Main mode -->
+  <div id="hdr-main" style="display:flex;align-items:center;width:100%;gap:5px;">
+    <div style="display:flex;gap:5px;flex-shrink:0;">
+      <button class="header-btn" onclick="loadSummary()" id="btn-refresh" title="Rescan document">Refresh</button>
+      <button class="header-btn" onclick="syncAll()" id="btn-sync-all" title="Sync all linked tags">Sync</button>
+    </div>
+    <span class="header-status" id="header-status" style="flex:1;padding:0 6px;"></span>
+    <button class="header-btn" onclick="openSettings()" title="Settings" style="flex-shrink:0;font-size:14px;padding:4px 8px;">⚙</button>
   </div>
-  <span class="header-status" id="header-status"></span>
+  <!-- Settings mode -->
+  <div id="hdr-settings" style="display:none;align-items:center;width:100%;gap:8px;">
+    <button class="header-btn" onclick="closeSettings()">&#8592; Back</button>
+    <span style="font-size:13px;font-weight:500;">Settings</span>
+  </div>
 </div>
 
-<div class="content">
+<div class="content" id="main-content">
 
   <!-- ── Top-level error banner ────────────────────────────────────────────── -->
   <div id="status-top" class="status"></div>
@@ -356,7 +430,65 @@
     </ul>
   </div>
 
-</div><!-- /.content -->
+</div><!-- /#main-content -->
+
+<!-- ── Settings pane ────────────────────────────────────────────────────────── -->
+<div id="settings-content" class="content" style="display:none;">
+
+  <div class="settings-tabs">
+    <button class="settings-tab active" data-tab="manage-tags" onclick="switchSettingsTab('manage-tags')">Manage Tags</button>
+    <button class="settings-tab" data-tab="timestamp" onclick="switchSettingsTab('timestamp')">Timestamp Settings</button>
+  </div>
+
+  <!-- Manage Tags tab -->
+  <div id="tab-manage-tags" class="tab-panel">
+    <div id="manage-tags-list"><div class="loading">Loading…</div></div>
+  </div>
+
+  <!-- Timestamp Settings tab -->
+  <div id="tab-timestamp" class="tab-panel" style="display:none;">
+    <div class="settings-field">
+      <label for="ts-font-size">Font Size (pt)</label>
+      <input type="number" id="ts-font-size" min="6" max="24" value="11">
+    </div>
+    <div class="settings-field">
+      <label for="ts-parent-folders">Parent Folders in Link</label>
+      <select id="ts-parent-folders">
+        <option value="0">0 — filename only</option>
+        <option value="1">1 — parent / filename</option>
+        <option value="2" selected>2 — grandparent / parent / filename</option>
+      </select>
+    </div>
+    <div class="settings-field">
+      <label>Link Color</label>
+      <div class="settings-color-row">
+        <input type="color" id="ts-link-color-picker" value="#1155CC">
+        <input type="text"  id="ts-link-color-text"   value="#1155CC" maxlength="7" placeholder="#rrggbb">
+      </div>
+    </div>
+    <div class="settings-field">
+      <label>Text Color</label>
+      <div class="settings-color-row">
+        <input type="color" id="ts-text-color-picker" value="#777777">
+        <input type="text"  id="ts-text-color-text"   value="#777777" maxlength="7" placeholder="#rrggbb">
+      </div>
+    </div>
+    <div class="settings-field">
+      <label for="ts-date-format">Date / Time Format</label>
+      <select id="ts-date-format">
+        <option value="locale">Default  (e.g. 4/24/2026 3:45:00 PM)</option>
+        <option value="short">Short  (e.g. 4/24/2026 3:45 PM)</option>
+        <option value="date-only">Date only  (e.g. 4/24/2026)</option>
+        <option value="iso">ISO  (e.g. 2026-04-24 15:45)</option>
+      </select>
+    </div>
+    <div class="form-row" style="margin-top:4px;">
+      <button class="btn btn-primary btn-full" onclick="saveTimestampSettingsForm()">Save Settings</button>
+    </div>
+    <div id="status-ts" class="status" style="margin-top:8px;"></div>
+  </div>
+
+</div><!-- /#settings-content -->
 
 <script>
   // ── State ────────────────────────────────────────────────────────────────────
@@ -680,6 +812,255 @@
   function clearStatus(id) {
     const el = document.getElementById(id);
     if (el) { el.className = 'status'; el.textContent = ''; }
+  }
+
+  // ── Settings navigation ───────────────────────────────────────────────────────
+
+  function openSettings() {
+    document.getElementById('hdr-main').style.display = 'none';
+    document.getElementById('hdr-settings').style.display = 'flex';
+    document.getElementById('main-content').style.display = 'none';
+    document.getElementById('settings-content').style.display = 'block';
+    loadManageTags();
+    loadTimestampSettings();
+  }
+
+  function closeSettings() {
+    document.getElementById('hdr-settings').style.display = 'none';
+    document.getElementById('hdr-main').style.display = 'flex';
+    document.getElementById('settings-content').style.display = 'none';
+    document.getElementById('main-content').style.display = 'block';
+  }
+
+  function switchSettingsTab(tab) {
+    document.querySelectorAll('.tab-panel').forEach(function (p) { p.style.display = 'none'; });
+    document.getElementById('tab-' + tab).style.display = 'block';
+    document.querySelectorAll('.settings-tab').forEach(function (t) {
+      t.classList.toggle('active', t.dataset.tab === tab);
+    });
+  }
+
+  // ── Manage Tags tab ───────────────────────────────────────────────────────────
+
+  function loadManageTags() {
+    document.getElementById('manage-tags-list').innerHTML = '<div class="loading">Loading…</div>';
+    google.script.run
+      .withSuccessHandler(renderManageTags)
+      .withFailureHandler(function (err) {
+        document.getElementById('manage-tags-list').innerHTML =
+          '<div class="status error show">' + esc(err.message) + '</div>';
+      })
+      .getTags();
+  }
+
+  function renderManageTags(tagsMap) {
+    const list = document.getElementById('manage-tags-list');
+    const entries = Object.entries(tagsMap).sort(function (a, b) {
+      return a[1].name.localeCompare(b[1].name);
+    });
+    if (entries.length === 0) {
+      list.innerHTML = '<div class="empty-state">No tags defined yet.</div>';
+      return;
+    }
+    list.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+    entries.forEach(function (entry) {
+      wrap.appendChild(buildManageTagCard(entry[0], entry[1]));
+    });
+    list.appendChild(wrap);
+  }
+
+  function buildManageTagCard(tagId, tag) {
+    const card = document.createElement('div');
+    card.className = 'tag-card';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'tag-card-header';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'tag-card-name';
+    nameEl.textContent = tag.name;
+
+    const chevron = document.createElement('span');
+    chevron.className = 'chevron';
+    chevron.textContent = '›';
+
+    header.appendChild(nameEl);
+    header.appendChild(chevron);
+
+    // Body
+    const body = document.createElement('div');
+    body.className = 'tag-card-body';
+
+    // Aggregation doc label
+    const aggLabel = document.createElement('div');
+    aggLabel.style.cssText = 'font-size:11px;font-weight:600;color:#5f6368;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;';
+    aggLabel.textContent = 'Aggregation Doc';
+    body.appendChild(aggLabel);
+
+    const isLinked = !!tag.aggregationDocId;
+
+    // Linked view
+    const linkedView = document.createElement('div');
+    linkedView.style.cssText = 'display:' + (isLinked ? 'flex' : 'none') + ';align-items:center;gap:6px;margin-bottom:10px;';
+
+    const docLink = document.createElement('a');
+    docLink.style.cssText = 'font-size:12px;color:#1a73e8;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    docLink.target = '_blank';
+    if (tag.aggregationDocId) {
+      docLink.href = 'https://docs.google.com/document/d/' + tag.aggregationDocId + '/edit';
+      docLink.textContent = tag.aggregationDocName || tag.aggregationDocId;
+    }
+
+    const removeBtn = document.createElement('button');
+    removeBtn.style.cssText = 'background:none;border:none;color:#bbb;cursor:pointer;font-size:13px;padding:0 2px;line-height:1;flex-shrink:0;';
+    removeBtn.textContent = '✕';
+    removeBtn.title = 'Change aggregation doc';
+    removeBtn.onmouseenter = function () { this.style.color = '#d93025'; };
+    removeBtn.onmouseleave = function () { this.style.color = '#bbb'; };
+
+    linkedView.appendChild(docLink);
+    linkedView.appendChild(removeBtn);
+
+    // Edit view
+    const editView = document.createElement('div');
+    editView.style.cssText = 'display:' + (isLinked ? 'none' : 'block') + ';margin-bottom:10px;';
+
+    const urlInput = document.createElement('input');
+    urlInput.type = 'url';
+    urlInput.placeholder = 'Paste Google Docs URL';
+    urlInput.style.cssText = 'width:100%;border:1px solid #dadce0;border-radius:6px;padding:6px 10px;font-size:13px;margin-bottom:8px;box-sizing:border-box;';
+    if (tag.aggregationDocId) {
+      urlInput.value = 'https://docs.google.com/document/d/' + tag.aggregationDocId + '/edit';
+    }
+    editView.appendChild(urlInput);
+
+    const linkStatusEl = document.createElement('div');
+    linkStatusEl.className = 'status';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'btn btn-primary';
+    saveBtn.style.cssText = 'width:100%;justify-content:center;';
+    saveBtn.textContent = isLinked ? 'Save' : 'Link Tag';
+    saveBtn.onclick = function () {
+      const url = urlInput.value.trim();
+      if (!url) { showEl(linkStatusEl, 'Enter an aggregation doc URL.', 'error'); return; }
+      showEl(linkStatusEl, 'Saving…', 'info');
+      saveBtn.disabled = true;
+      google.script.run
+        .withSuccessHandler(function (result) {
+          saveBtn.disabled = false;
+          linkStatusEl.className = 'status';
+          docLink.href = 'https://docs.google.com/document/d/' + result.aggregationDocId + '/edit';
+          docLink.textContent = result.aggregationDocName || result.aggregationDocId;
+          linkedView.style.display = 'flex';
+          editView.style.display = 'none';
+        })
+        .withFailureHandler(function (err) {
+          saveBtn.disabled = false;
+          showEl(linkStatusEl, err.message, 'error');
+        })
+        .createTag(tag.name, url);
+    };
+
+    editView.appendChild(saveBtn);
+    editView.appendChild(linkStatusEl);
+
+    removeBtn.onclick = function (e) {
+      e.stopPropagation();
+      linkedView.style.display = 'none';
+      editView.style.display = 'block';
+    };
+
+    body.appendChild(linkedView);
+    body.appendChild(editView);
+
+    // Delete button
+    const delStatusEl = document.createElement('div');
+    delStatusEl.className = 'status';
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn btn-danger';
+    delBtn.style.cssText = 'width:100%;justify-content:center;';
+    delBtn.textContent = 'Delete Tag';
+    delBtn.onclick = function (e) {
+      e.stopPropagation();
+      if (!confirm('Delete the "' + tag.name + '" tag definition?\n\nThis only removes the aggregation doc association. Your [' + tag.name + '] list items stay intact.')) return;
+      delBtn.disabled = true;
+      showEl(delStatusEl, 'Deleting…', 'info');
+      google.script.run
+        .withSuccessHandler(function () { card.remove(); })
+        .withFailureHandler(function (err) {
+          delBtn.disabled = false;
+          showEl(delStatusEl, err.message, 'error');
+        })
+        .deleteTag(tagId);
+    };
+
+    body.appendChild(delBtn);
+    body.appendChild(delStatusEl);
+
+    // Toggle
+    header.onclick = function () {
+      const isOpen = body.classList.toggle('open');
+      chevron.classList.toggle('open', isOpen);
+    };
+
+    card.appendChild(header);
+    card.appendChild(body);
+    return card;
+  }
+
+  // ── Timestamp Settings tab ────────────────────────────────────────────────────
+
+  function loadTimestampSettings() {
+    google.script.run
+      .withSuccessHandler(function (s) {
+        document.getElementById('ts-font-size').value = s.fontSize;
+        document.getElementById('ts-parent-folders').value = String(s.parentFolders);
+        document.getElementById('ts-link-color-picker').value = s.linkColor;
+        document.getElementById('ts-link-color-text').value = s.linkColor;
+        document.getElementById('ts-text-color-picker').value = s.textColor;
+        document.getElementById('ts-text-color-text').value = s.textColor;
+        document.getElementById('ts-date-format').value = s.dateFormat;
+      })
+      .withFailureHandler(function (err) {
+        showStatus('status-ts', err.message, 'error');
+      })
+      .getTimestampSettings();
+
+    // Keep color picker and text input in sync
+    syncColorPair('ts-link-color-picker', 'ts-link-color-text');
+    syncColorPair('ts-text-color-picker', 'ts-text-color-text');
+  }
+
+  function syncColorPair(pickerId, textId) {
+    const picker = document.getElementById(pickerId);
+    const text   = document.getElementById(textId);
+    picker.addEventListener('input', function () { text.value = picker.value; });
+    text.addEventListener('input', function () {
+      if (/^#[0-9a-fA-F]{6}$/.test(text.value)) picker.value = text.value;
+    });
+  }
+
+  function saveTimestampSettingsForm() {
+    const settings = {
+      fontSize:      parseInt(document.getElementById('ts-font-size').value, 10),
+      parentFolders: parseInt(document.getElementById('ts-parent-folders').value, 10),
+      linkColor:     document.getElementById('ts-link-color-text').value.trim(),
+      textColor:     document.getElementById('ts-text-color-text').value.trim(),
+      dateFormat:    document.getElementById('ts-date-format').value,
+    };
+    if (!settings.fontSize || settings.fontSize < 1) {
+      showStatus('status-ts', 'Font size must be a positive number.', 'error'); return;
+    }
+    showStatus('status-ts', 'Saving…', 'info');
+    google.script.run
+      .withSuccessHandler(function () { showStatus('status-ts', '✓ Settings saved.', 'success'); })
+      .withFailureHandler(function (err) { showStatus('status-ts', err.message, 'error'); })
+      .saveTimestampSettings(settings);
   }
 
   function esc(str) {
