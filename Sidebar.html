@@ -36,13 +36,13 @@
     .header-btn {
       background: rgba(255,255,255,.18);
       border: none;
-      border-radius: 5px;
+      border-radius: 50%;
       color: #fff;
-      padding: 4px 9px;
+      padding: 6px;
       font-size: 12px;
       cursor: pointer;
       font-weight: 500;
-      display: flex; align-items: center; gap: 4px;
+      display: flex; align-items: center; justify-content: center;
     }
     .header-btn:hover { background: rgba(255,255,255,.3); }
     .header-btn:disabled { opacity: .5; cursor: default; }
@@ -351,12 +351,19 @@
 <div class="header">
   <!-- Main mode -->
   <div id="hdr-main" style="display:flex;align-items:center;width:100%;gap:5px;">
-    <div style="display:flex;gap:5px;flex-shrink:0;">
-      <button class="header-btn" onclick="loadSummary()" id="btn-refresh" title="Rescan document">Refresh</button>
-      <button class="header-btn" onclick="syncAll()" id="btn-sync-all" title="Sync all linked tags">Sync</button>
-    </div>
+    <button class="header-btn" id="btn-sync-refresh" onclick="syncAndRefresh()" title="Sync" style="flex-shrink:0;">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+        <polyline points="23 4 23 10 17 10"/>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+      </svg>
+    </button>
     <span class="header-status" id="header-status" style="flex:1;padding:0 6px;"></span>
-    <button class="header-btn" onclick="openSettings()" title="Settings" style="flex-shrink:0;padding:4px 8px;"><span style="display:inline-block;transform:scale(1.7);line-height:1;">⚙</span></button>
+    <button class="header-btn" onclick="openSettings()" title="Settings" style="flex-shrink:0;">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
   </div>
   <!-- Settings mode -->
   <div id="hdr-settings" style="display:none;align-items:center;width:100%;gap:8px;">
@@ -527,7 +534,7 @@
   // ── Init ─────────────────────────────────────────────────────────────────────
 
   window.onload = function () {
-    loadSummary();
+    syncAndRefresh();
   };
 
   // ── Load & render ─────────────────────────────────────────────────────────────
@@ -537,7 +544,50 @@
     setHeaderStatus('Scanning document…');
 
     google.script.run
-      .withSuccessHandler(renderSummary)
+      .withSuccessHandler(function (summary) {
+        setHeaderLoading(false);
+        setHeaderStatus('');
+        renderSummary(summary);
+      })
+      .withFailureHandler(function (err) {
+        setHeaderLoading(false);
+        setHeaderStatus('');
+        revealDocSection();
+        document.getElementById('in-doc-list').innerHTML =
+          '<div class="status error show">' + esc(err.message) + '</div>';
+      })
+      .getDocumentTagSummary();
+  }
+
+  function syncAndRefresh() {
+    setHeaderLoading(true);
+    setHeaderStatus('Scanning document…');
+
+    google.script.run
+      .withSuccessHandler(function (summary) {
+        renderSummary(summary);
+        setHeaderStatus('Syncing…');
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            setHeaderLoading(false);
+            const errCount = Object.keys(res.errors).length;
+            if (errCount > 0) {
+              setHeaderStatus('');
+              const synced = Object.values(res.results).reduce(function (s, r) { return s + r.synced; }, 0);
+              showStatus('status-top', synced + ' synced, ' + errCount + ' error(s) — check individual tags.', 'error');
+            } else {
+              const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              setHeaderStatus('Synced at ' + time);
+            }
+          })
+          .withFailureHandler(function (err) {
+            setHeaderLoading(false);
+            setHeaderStatus('');
+            showStatus('status-top', err.message, 'error');
+          })
+          .syncAllTags();
+      })
       .withFailureHandler(function (err) {
         setHeaderLoading(false);
         setHeaderStatus('');
@@ -733,31 +783,6 @@
 
   // ── Sync ──────────────────────────────────────────────────────────────────────
 
-  function syncAll() {
-    setHeaderLoading(true);
-    setHeaderStatus('Syncing…');
-
-    google.script.run
-      .withSuccessHandler(function (res) {
-        setHeaderLoading(false);
-        const errCount = Object.keys(res.errors).length;
-        if (errCount > 0) {
-          setHeaderStatus('');
-          const synced = Object.values(res.results).reduce(function (s, r) { return s + r.synced; }, 0);
-          showStatus('status-top', synced + ' synced, ' + errCount + ' error(s) — check individual tags.', 'error');
-        } else {
-          const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          setHeaderStatus('Synced at ' + time);
-        }
-      })
-      .withFailureHandler(function (err) {
-        setHeaderLoading(false);
-        setHeaderStatus('');
-        showStatus('status-top', err.message, 'error');
-      })
-      .syncAllTags();
-  }
-
   // ── Delete tag ────────────────────────────────────────────────────────────────
 
   function deleteTag(tagId) {
@@ -816,8 +841,7 @@
   }
 
   function setHeaderLoading(on) {
-    document.getElementById('btn-refresh').disabled = on;
-    document.getElementById('btn-sync-all').disabled = on;
+    document.getElementById('btn-sync-refresh').disabled = on;
   }
 
   function setHeaderStatus(msg) {
