@@ -356,11 +356,11 @@
       <button class="header-btn" onclick="syncAll()" id="btn-sync-all" title="Sync all linked tags">Sync</button>
     </div>
     <span class="header-status" id="header-status" style="flex:1;padding:0 6px;"></span>
-    <button class="header-btn" onclick="openSettings()" title="Settings" style="flex-shrink:0;font-size:14px;padding:4px 8px;">⚙</button>
+    <button class="header-btn" onclick="openSettings()" title="Settings" style="flex-shrink:0;padding:4px 8px;"><span style="display:inline-block;transform:scale(1.7);line-height:1;">⚙</span></button>
   </div>
   <!-- Settings mode -->
   <div id="hdr-settings" style="display:none;align-items:center;width:100%;gap:8px;">
-    <button class="header-btn" onclick="closeSettings()">&#8592; Back</button>
+    <button class="header-btn" onclick="closeSettings()">&#8592;</button>
     <span style="font-size:13px;font-weight:500;">Settings</span>
   </div>
 </div>
@@ -441,7 +441,34 @@
   </div>
 
   <!-- Manage Tags tab -->
-  <div id="tab-manage-tags" class="tab-panel">
+  <div id="tab-manage-tags" class="tab-panel" style="display:flex;flex-direction:column;gap:10px;">
+
+    <button class="btn btn-secondary btn-full" onclick="toggleSettingsCreateForm()">
+      + Create New Tag
+    </button>
+
+    <div class="create-card" id="settings-create-form" style="display:none;">
+      <div class="create-card-header">
+        Link Tag to Aggregation Doc
+        <button onclick="toggleSettingsCreateForm()" style="background:none;border:none;cursor:pointer;color:#1a73e8;font-size:15px;line-height:1;">✕</button>
+      </div>
+      <div class="create-card-body">
+        <div class="form-group">
+          <label for="settings-new-tag-name">Tag Name</label>
+          <input type="text" id="settings-new-tag-name" placeholder='Must match [tag] in document'>
+        </div>
+        <div class="form-group">
+          <label for="settings-new-agg-url">Aggregation Document URL</label>
+          <input type="url" id="settings-new-agg-url" placeholder="Paste Google Docs URL">
+        </div>
+        <div class="form-row">
+          <button class="btn btn-secondary" onclick="toggleSettingsCreateForm()">Cancel</button>
+          <button class="btn btn-primary" onclick="submitSettingsCreateTag()">Link Tag</button>
+        </div>
+        <div id="status-settings-create" class="status"></div>
+      </div>
+    </div>
+
     <div id="manage-tags-list"><div class="loading">Loading…</div></div>
   </div>
 
@@ -834,7 +861,7 @@
 
   function switchSettingsTab(tab) {
     document.querySelectorAll('.tab-panel').forEach(function (p) { p.style.display = 'none'; });
-    document.getElementById('tab-' + tab).style.display = 'block';
+    document.getElementById('tab-' + tab).style.display = tab === 'manage-tags' ? 'flex' : 'block';
     document.querySelectorAll('.settings-tab').forEach(function (t) {
       t.classList.toggle('active', t.dataset.tab === tab);
     });
@@ -869,6 +896,40 @@
       wrap.appendChild(buildManageTagCard(entry[0], entry[1]));
     });
     list.appendChild(wrap);
+  }
+
+  function toggleSettingsCreateForm() {
+    const form = document.getElementById('settings-create-form');
+    const visible = form.style.display !== 'none';
+    form.style.display = visible ? 'none' : 'block';
+    if (!visible) {
+      document.getElementById('settings-new-tag-name').value = '';
+      document.getElementById('settings-new-agg-url').value = '';
+      clearStatus('status-settings-create');
+    }
+  }
+
+  function submitSettingsCreateTag() {
+    const name = document.getElementById('settings-new-tag-name').value.trim();
+    const url  = document.getElementById('settings-new-agg-url').value.trim();
+
+    if (!name) { showStatus('status-settings-create', 'Enter a tag name.', 'error'); return; }
+    if (!url)  { showStatus('status-settings-create', 'Enter an aggregation doc URL.', 'error'); return; }
+
+    showStatus('status-settings-create', 'Linking…', 'info');
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        showStatus('status-settings-create', '✓ Tag "' + result.name + '" linked!', 'success');
+        setTimeout(function () {
+          toggleSettingsCreateForm();
+          loadManageTags();
+        }, 700);
+      })
+      .withFailureHandler(function (err) {
+        showStatus('status-settings-create', err.message, 'error');
+      })
+      .createTag(name, url);
   }
 
   function buildManageTagCard(tagId, tag) {
@@ -977,13 +1038,24 @@
     body.appendChild(linkedView);
     body.appendChild(editView);
 
-    // Delete button
+    // Action buttons row
     const delStatusEl = document.createElement('div');
     delStatusEl.className = 'status';
 
+    const actionsRow = document.createElement('div');
+    actionsRow.className = 'card-actions';
+
+    const changeLinkBtn = document.createElement('button');
+    changeLinkBtn.className = 'btn btn-secondary';
+    changeLinkBtn.textContent = 'Change Link';
+    changeLinkBtn.onclick = function (e) {
+      e.stopPropagation();
+      linkedView.style.display = 'none';
+      editView.style.display = 'block';
+    };
+
     const delBtn = document.createElement('button');
     delBtn.className = 'btn btn-danger';
-    delBtn.style.cssText = 'width:100%;justify-content:center;';
     delBtn.textContent = 'Delete Tag';
     delBtn.onclick = function (e) {
       e.stopPropagation();
@@ -999,7 +1071,9 @@
         .deleteTag(tagId);
     };
 
-    body.appendChild(delBtn);
+    actionsRow.appendChild(changeLinkBtn);
+    actionsRow.appendChild(delBtn);
+    body.appendChild(actionsRow);
     body.appendChild(delStatusEl);
 
     // Toggle
