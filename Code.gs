@@ -210,7 +210,34 @@ function getDocumentTagSummary() {
     .filter(([, tag]) => !docTagNames.has(tag.name.toLowerCase()))
     .map(([id, tag]) => ({ tagId: id, ...tag }));
 
+  applyTagMarkerLinks_(nameToTag);
+
   return { inDocument, notInDocument };
+}
+
+/**
+ * For each [tagname] list item whose tag has a linked aggregation doc,
+ * sets a hyperlink on the marker text pointing to that doc.
+ * Skips markers that already have the correct link (avoids unnecessary writes).
+ * Safe to call on every scan — getText() is unaffected by link attributes,
+ * so the scan regex continues to match as before.
+ */
+function applyTagMarkerLinks_(nameToTag) {
+  const body = DocumentApp.getActiveDocument().getBody();
+  for (let i = 0; i < body.getNumChildren(); i++) {
+    const child = body.getChild(i);
+    if (child.getType() !== DocumentApp.ElementType.LIST_ITEM) continue;
+    const item = child.asListItem();
+    const raw = item.getText();
+    const tagMatch = raw.trim().match(/^\[([^\]]+)\]$/);
+    if (!tagMatch) continue;
+    const linked = nameToTag[tagMatch[1].toLowerCase()];
+    if (!linked || !linked.aggregationDocId) continue;
+    const url = 'https://docs.google.com/document/d/' + linked.aggregationDocId + '/edit';
+    const textEl = item.editAsText();
+    if (textEl.getLinkUrl(0) === url) continue; // already correct, skip write
+    textEl.setLinkUrl(0, raw.length - 1, url);
+  }
 }
 
 // ── Content retrieval ─────────────────────────────────────────────────────────
