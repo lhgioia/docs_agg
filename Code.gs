@@ -211,10 +211,57 @@ function getTaggedContent(tagId) {
   const tag = tags[tagId];
   if (!tag) return [];
 
-  const scan = scanDocumentForTags_();
+  const scan = scanDocumentForTagElements_();
   const nameLower = tag.name.toLowerCase();
   const entry = Object.entries(scan).find(([n]) => n.toLowerCase() === nameLower);
-  return entry ? entry[1].map(text => ({ text })) : [];
+  return entry
+    ? entry[1].map(function (e) { return { text: e.element.getText().trim(), element: e.element, level: e.level }; })
+    : [];
+}
+
+/**
+ * Same scan logic as scanDocumentForTags_ but stores ListItem element
+ * references and relative nesting levels instead of plain text.
+ * Used server-side only (element references cannot be serialized for the sidebar).
+ *
+ * "level" is relative to the tag marker: a direct child is level 0,
+ * a grandchild is level 1, etc.
+ *
+ * @returns {{ [tagName: string]: { element: ListItem, level: number }[] }}
+ */
+function scanDocumentForTagElements_() {
+  const body = DocumentApp.getActiveDocument().getBody();
+  const result = {};
+  let currentTag = null;
+  let parentLevel = -1;
+
+  for (let i = 0; i < body.getNumChildren(); i++) {
+    const child = body.getChild(i);
+
+    if (child.getType() !== DocumentApp.ElementType.LIST_ITEM) {
+      currentTag = null;
+      parentLevel = -1;
+      continue;
+    }
+
+    const item = child.asListItem();
+    const level = item.getNestingLevel();
+    const text = item.getText().trim();
+    const tagMatch = text.match(/^\[([^\]]+)\]$/);
+
+    if (tagMatch) {
+      currentTag = tagMatch[1];
+      parentLevel = level;
+      if (!result[currentTag]) result[currentTag] = [];
+    } else if (currentTag !== null && level > parentLevel) {
+      if (text) result[currentTag].push({ element: item, level: level - parentLevel - 1 });
+    } else {
+      currentTag = null;
+      parentLevel = -1;
+    }
+  }
+
+  return result;
 }
 
 // ── Sync ──────────────────────────────────────────────────────────────────────
@@ -355,14 +402,14 @@ function upsertSection_(body, startMarker, endMarker, tag, sourceDocName, source
   meta.editAsText().setFontSize(8).setForegroundColor('#777777').setItalic(true);
   meta.setSpacingAfter(6);
 
-  // Insert excerpts.
-  excerpts.forEach(function ({ text }) {
-    const p = body.insertParagraph(insertIdx++, text);
-    p.setHeading(DocumentApp.ParagraphHeading.NORMAL);
-    p.setIndentStart(18);
-    p.setSpacingBefore(4);
-    p.setSpacingAfter(4);
-    p.editAsText().setBackgroundColor(tag.color).setFontSize(11);
+  // Insert excerpts using element.copy() so all inline formatting, glyph type,
+  // and list structure are preserved without manual attribute copying.
+  // Nesting level is normalized to be relative to the [tag] marker.
+  excerpts.forEach(function ({ element, level }) {
+    const li = body.insertListItem(insertIdx++, element.copy());
+    li.setNestingLevel(level || 0);
+    li.setSpacingBefore(2);
+    li.setSpacingAfter(2);
   });
 }
 
