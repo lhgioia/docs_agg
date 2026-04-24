@@ -172,27 +172,14 @@
 
     /* ── Defined-but-not-in-doc list ───────────────────────────────────────── */
     .ghost-tag {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 10px;
+      display: inline-flex;
+      padding: 3px 8px;
       background: #fff;
       border: 1px solid #e0e0e0;
-      border-radius: 7px;
+      border-radius: 12px;
       font-size: 12px;
       color: #5f6368;
     }
-    .ghost-tag .tag-name { flex: 1; }
-    .ghost-tag .del-btn {
-      background: none;
-      border: none;
-      color: #bbb;
-      cursor: pointer;
-      font-size: 14px;
-      padding: 0 2px;
-      line-height: 1;
-    }
-    .ghost-tag .del-btn:hover { color: #d93025; }
 
     /* ── Buttons ────────────────────────────────────────────────────────────── */
     .btn {
@@ -349,7 +336,7 @@
   <!-- ── Defined tags not in document ──────────────────────────────────────── -->
   <div id="not-in-doc-section" style="display:none">
     <div class="section-label">Unused tags</div>
-    <div id="not-in-doc-list" style="display:flex;flex-direction:column;gap:5px;"></div>
+    <div id="not-in-doc-list" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
   </div>
 
   <!-- ── Usage hint ─────────────────────────────────────────────────────────── -->
@@ -434,9 +421,9 @@
     if (summary.notInDocument && summary.notInDocument.length > 0) {
       notInDocSection.style.display = 'block';
       notInDocList.innerHTML = '';
-      summary.notInDocument.forEach(function (tag) {
-        notInDocList.appendChild(buildGhostTag(tag));
-      });
+      summary.notInDocument
+        .slice().sort(function (a, b) { return a.name.localeCompare(b.name); })
+        .forEach(function (tag) { notInDocList.appendChild(buildGhostTag(tag)); });
     } else {
       notInDocSection.style.display = 'none';
     }
@@ -581,28 +568,7 @@
   function buildGhostTag(tag) {
     const el = document.createElement('div');
     el.className = 'ghost-tag';
-
-    const name = document.createElement('span');
-    name.className = 'tag-name';
-    name.textContent = tag.name;
-
-    const hint = document.createElement('span');
-    hint.style.cssText = 'font-size:11px;color:#bbb;';
-    hint.textContent = 'add [' + tag.name + '] to doc';
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'del-btn';
-    delBtn.title = 'Remove tag definition';
-    delBtn.textContent = '✕';
-    delBtn.onclick = function () {
-      if (confirm('Remove the "' + tag.name + '" tag definition?')) {
-        deleteTag(tag.tagId);
-      }
-    };
-
-    el.appendChild(name);
-    el.appendChild(hint);
-    el.appendChild(delBtn);
+    el.textContent = tag.name;
     return el;
   }
 
