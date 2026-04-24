@@ -1,21 +1,21 @@
 # Docs Aggregator
 
-A Google Docs Editor Add-on that lets you tag text excerpts and automatically sync them to a separate aggregation document.
+A Google Docs Editor Add-on that lets you tag text excerpts using inline list syntax and automatically sync them to a separate aggregation document.
 
 ## Features
 
-- **Create tags** — each tag links to a user-specified aggregation Google Doc
-- **Apply tags to selections** — highlights tagged text with a chosen color and tracks it via a named range
-- **Tag dropdown** — sidebar shows all your tags; selecting one lists every excerpt from the current document
+- **Inline tag syntax** — write `[Tag Name]` as a list item; indent child items beneath it and they become the synced excerpts
+- **Document scan** — the sidebar scans the document on open and shows every `[tag]` it finds, with a live excerpt preview
+- **Link tags** — associate a tag name with an aggregation Google Doc and a highlight color
 - **Sync** — push excerpts to the aggregation doc (idempotent; re-syncing replaces the previous version)
-- **Sync All** — sync every tag in one click
+- **Sync All** — sync every linked tag in one click
 
 ## Project structure
 
 ```
 .
 ├── appsscript.json   — Apps Script manifest & OAuth scopes
-├── Code.gs           — Server-side logic (tag CRUD, named ranges, sync)
+├── Code.gs           — Server-side logic (tag CRUD, document scanning, sync)
 ├── Sidebar.html      — Client-side sidebar UI
 └── .clasp.json       — clasp deployment config (fill in your scriptId)
 ```
@@ -53,10 +53,9 @@ clasp push
 
 ### 4. Test in Google Docs
 
-1. Open any Google Doc.
-2. In Apps Script editor: **Run → onInstall** (grants permissions).
-3. Reload the Doc — an **Extensions → Docs Aggregator** menu appears.
-4. Open the sidebar via **Extensions → Docs Aggregator → Open Docs Aggregator**.
+1. Open the Google Doc the script is bound to.
+2. Reload the page — an **Extensions → Docs Aggregator** menu appears.
+3. Open the sidebar via **Extensions → Docs Aggregator → Open Docs Aggregator**.
 
 ### 5. Publish (optional)
 
@@ -66,11 +65,19 @@ To install the add-on from the Workspace Marketplace, create a deployment via **
 
 ### Tagging mechanism
 
-When you apply a tag to a selection:
-1. A **named range** is created in the document with the convention `docsagg_<tagId>_<timestamp>`.
-2. The selected text is **highlighted** with the tag's color.
+Tags are written directly in the document using list syntax:
 
-Named ranges survive edits to surrounding text and are used to retrieve the current content of each excerpt at sync time.
+```
+• [Research Notes]
+  • This child item will be synced
+  • So will this one
+• [Bug Fixes]
+  • Regression in the login flow
+```
+
+Any list item whose full text matches `[Tag Name]` is treated as a tag marker. All list items indented beneath it (at a strictly deeper nesting level) are collected as excerpts. The group ends when a list item at the same or shallower level is encountered, or when a non-list element (paragraph, table, etc.) appears.
+
+The document is the source of truth — no named ranges or text highlighting are used. The sidebar scans the document each time it loads or is refreshed.
 
 ### Aggregation document format
 
@@ -89,5 +96,5 @@ Re-syncing removes the old section and appends a fresh one, so the aggregation d
 
 ### Data storage
 
-- **Tags** (name, aggregation doc ID, color) are stored in `UserProperties` — they persist across all documents for the user.
-- **Tagged ranges** live as named ranges inside each source document.
+- **Tag definitions** (name, aggregation doc ID, color) are stored in `UserProperties` — they persist across all documents for the user.
+- **Tag content** lives in the document itself as ordinary list items — no hidden metadata is stored in the source document.

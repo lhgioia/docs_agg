@@ -3,347 +3,393 @@
 <head>
   <base target="_top">
   <style>
-    /* ── Reset & base ─────────────────────────────────────────────────────── */
+    /* ── Reset & base ──────────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'Google Sans', Roboto, Arial, sans-serif;
       font-size: 13px;
       color: #202124;
-      background: #fff;
+      background: #f8f9fa;
       height: 100vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
 
-    /* ── Header ──────────────────────────────────────────────────────────── */
+    /* ── Header ────────────────────────────────────────────────────────────── */
     .header {
       background: #1a73e8;
       color: #fff;
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-    .header-icon { font-size: 18px; }
-    .header h1 { font-size: 15px; font-weight: 500; letter-spacing: .2px; }
-
-    /* ── Scrollable body ─────────────────────────────────────────────────── */
-    .content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 12px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    /* ── Section cards ───────────────────────────────────────────────────── */
-    .card {
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .card-header {
-      background: #f8f9fa;
-      border-bottom: 1px solid #e0e0e0;
-      padding: 8px 12px;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .6px;
-      color: #5f6368;
+      padding: 10px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-shrink: 0;
     }
-    .card-body { padding: 10px 12px; }
-
-    /* ── Tag select row ──────────────────────────────────────────────────── */
-    .select-row {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-    select {
-      flex: 1;
-      border: 1px solid #dadce0;
-      border-radius: 6px;
-      padding: 7px 10px;
-      font-size: 13px;
-      color: #202124;
-      background: #fff;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235f6368' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 10px center;
-      padding-right: 28px;
+    .header-left { display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 500; }
+    .header-right { display: flex; gap: 5px; }
+    .header-btn {
+      background: rgba(255,255,255,.18);
+      border: none;
+      border-radius: 5px;
+      color: #fff;
+      padding: 4px 9px;
+      font-size: 12px;
       cursor: pointer;
+      font-weight: 500;
+      display: flex; align-items: center; gap: 4px;
     }
-    select:focus { outline: none; border-color: #1a73e8; }
+    .header-btn:hover { background: rgba(255,255,255,.3); }
+    .header-btn:disabled { opacity: .5; cursor: default; }
 
-    /* ── Tag detail panel ────────────────────────────────────────────────── */
-    #tag-detail { display: none; }
+    /* ── Scrollable body ───────────────────────────────────────────────────── */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
 
-    .tag-meta {
+    /* ── Hint bar ──────────────────────────────────────────────────────────── */
+    .hint {
+      background: #e8f0fe;
+      border-radius: 7px;
+      padding: 8px 10px;
+      font-size: 11.5px;
+      color: #1a56c4;
+      line-height: 1.5;
+    }
+    .hint code {
+      background: #c7d9f9;
+      border-radius: 3px;
+      padding: 1px 4px;
+      font-family: monospace;
+      font-size: 11px;
+    }
+
+    /* ── Section label ─────────────────────────────────────────────────────── */
+    .section-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: #5f6368;
+      padding: 2px 2px 4px;
+    }
+
+    /* ── Tag cards ─────────────────────────────────────────────────────────── */
+    .tag-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+      transition: box-shadow .15s;
+    }
+    .tag-card:hover { box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+
+    .tag-card-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 8px;
+      padding: 9px 11px;
+      cursor: pointer;
+      user-select: none;
     }
-    .color-swatch {
-      width: 16px;
-      height: 16px;
-      border-radius: 4px;
+    .tag-card-header:hover { background: #f8f9fa; }
+
+    .swatch {
+      width: 13px;
+      height: 13px;
+      border-radius: 3px;
       border: 1px solid rgba(0,0,0,.12);
       flex-shrink: 0;
     }
-    .tag-name { font-weight: 600; font-size: 14px; }
-    .tag-doc-link {
-      font-size: 11px;
-      color: #1a73e8;
-      text-decoration: none;
-      white-space: nowrap;
+    .swatch-unlinked {
+      border: 2px dashed #bbb;
+      background: transparent !important;
+    }
+
+    .tag-card-name {
+      font-weight: 500;
+      font-size: 13px;
+      flex: 1;
       overflow: hidden;
       text-overflow: ellipsis;
-      display: block;
-      max-width: 100%;
-    }
-    .tag-doc-link:hover { text-decoration: underline; }
-
-    .excerpt-count {
-      font-size: 11px;
-      color: #5f6368;
-      margin-bottom: 8px;
+      white-space: nowrap;
     }
 
-    /* ── Excerpt list ─────────────────────────────────────────────────────── */
+    .badge {
+      font-size: 10.5px;
+      font-weight: 600;
+      background: #e8f0fe;
+      color: #1a73e8;
+      border-radius: 10px;
+      padding: 1px 7px;
+      flex-shrink: 0;
+    }
+    .badge-warn {
+      background: #fef3cd;
+      color: #b36b00;
+    }
+
+    .chevron {
+      font-size: 14px;
+      color: #80868b;
+      transition: transform .2s;
+      flex-shrink: 0;
+    }
+    .chevron.open { transform: rotate(90deg); }
+
+    /* ── Card body (expanded) ──────────────────────────────────────────────── */
+    .tag-card-body {
+      display: none;
+      border-top: 1px solid #e0e0e0;
+      padding: 10px 11px;
+    }
+    .tag-card-body.open { display: block; }
+
     .excerpt-list {
       list-style: none;
       display: flex;
       flex-direction: column;
       gap: 4px;
-      max-height: 180px;
+      max-height: 200px;
       overflow-y: auto;
+      margin-bottom: 10px;
     }
     .excerpt-item {
-      padding: 6px 8px;
-      border-radius: 5px;
       font-size: 12px;
       line-height: 1.5;
-      border-left: 3px solid transparent;
+      padding: 5px 8px;
+      border-radius: 5px;
+      border-left: 3px solid #ccc;
       background: #f8f9fa;
-      white-space: pre-wrap;
       word-break: break-word;
     }
     .no-excerpts {
-      color: #80868b;
       font-size: 12px;
+      color: #80868b;
       font-style: italic;
-      padding: 4px 0;
+      padding: 3px 0 8px;
     }
 
-    /* ── Action buttons row ───────────────────────────────────────────────── */
-    .actions {
+    .card-actions {
       display: flex;
       gap: 6px;
       flex-wrap: wrap;
-      margin-top: 10px;
     }
+
+    /* ── Link form (for unlinked tags) ─────────────────────────────────────── */
+    .link-form {
+      border-top: 1px solid #e8e8e8;
+      margin-top: 10px;
+      padding-top: 10px;
+    }
+    .link-form-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #5f6368;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 6px;
+    }
+
+    /* ── Defined-but-not-in-doc list ───────────────────────────────────────── */
+    .ghost-tag {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 7px;
+      font-size: 12px;
+      color: #5f6368;
+    }
+    .ghost-tag .tag-name { flex: 1; }
+    .ghost-tag .del-btn {
+      background: none;
+      border: none;
+      color: #bbb;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0 2px;
+      line-height: 1;
+    }
+    .ghost-tag .del-btn:hover { color: #d93025; }
+
+    /* ── Buttons ────────────────────────────────────────────────────────────── */
     .btn {
       border: none;
       border-radius: 6px;
-      padding: 7px 12px;
+      padding: 6px 11px;
       font-size: 12px;
       font-weight: 500;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      transition: background .15s, opacity .15s;
+      gap: 4px;
       white-space: nowrap;
+      transition: background .15s;
     }
     .btn:disabled { opacity: .45; cursor: default; }
     .btn-primary   { background: #1a73e8; color: #fff; }
     .btn-primary:not(:disabled):hover   { background: #1558b0; }
     .btn-secondary { background: #e8f0fe; color: #1a73e8; }
     .btn-secondary:not(:disabled):hover { background: #d2e3fc; }
-    .btn-danger    { background: #fce8e6; color: #d93025; }
-    .btn-danger:not(:disabled):hover    { background: #f5c6c3; }
     .btn-success   { background: #e6f4ea; color: #137333; }
     .btn-success:not(:disabled):hover   { background: #ceead6; }
+    .btn-danger    { background: #fce8e6; color: #d93025; }
+    .btn-danger:not(:disabled):hover    { background: #f5c6c3; }
+    .btn-full { width: 100%; justify-content: center; }
 
-    /* ── Create tag form ──────────────────────────────────────────────────── */
-    #create-form { display: none; }
+    /* ── Create form ────────────────────────────────────────────────────────── */
+    .create-card {
+      background: #fff;
+      border: 1px solid #1a73e8;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .create-card-header {
+      background: #e8f0fe;
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: #1a73e8;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .create-card-body { padding: 10px 12px; }
 
-    .form-group { margin-bottom: 10px; }
+    .form-group { margin-bottom: 9px; }
     label {
       display: block;
       font-size: 11px;
       font-weight: 600;
       color: #5f6368;
-      margin-bottom: 4px;
       text-transform: uppercase;
       letter-spacing: .4px;
+      margin-bottom: 4px;
     }
     input[type="text"], input[type="url"] {
       width: 100%;
       border: 1px solid #dadce0;
       border-radius: 6px;
-      padding: 7px 10px;
+      padding: 6px 10px;
       font-size: 13px;
       color: #202124;
     }
     input:focus { outline: none; border-color: #1a73e8; }
 
-    .color-grid {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin-top: 2px;
-    }
-    .color-option {
-      width: 26px;
-      height: 26px;
+    .color-grid { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
+    .color-dot {
+      width: 22px; height: 22px;
       border-radius: 50%;
-      border: 2px solid transparent;
       cursor: pointer;
-      transition: border-color .15s, transform .1s;
+      border: 2px solid transparent;
+      transition: transform .1s, border-color .1s;
     }
-    .color-option:hover  { transform: scale(1.15); }
-    .color-option.active { border-color: #202124; }
+    .color-dot:hover  { transform: scale(1.2); }
+    .color-dot.active { border-color: #202124; }
 
-    .form-actions {
-      display: flex;
-      gap: 6px;
-      justify-content: flex-end;
-      margin-top: 12px;
-    }
+    .form-row { display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px; }
 
-    /* ── Spinner / status ─────────────────────────────────────────────────── */
+    /* ── Status messages ────────────────────────────────────────────────────── */
     .status {
-      font-size: 12px;
-      padding: 6px 10px;
-      border-radius: 6px;
-      margin-top: 8px;
+      font-size: 11.5px;
+      padding: 5px 8px;
+      border-radius: 5px;
+      margin-top: 7px;
       display: none;
     }
+    .status.show    { display: block; }
     .status.info    { background: #e8f0fe; color: #1a73e8; }
     .status.success { background: #e6f4ea; color: #137333; }
     .status.error   { background: #fce8e6; color: #d93025; }
-    .status.show    { display: block; }
 
-    /* ── Misc ─────────────────────────────────────────────────────────────── */
-    .icon { font-style: normal; }
-    .divider { border: none; border-top: 1px solid #e0e0e0; margin: 2px 0; }
-    .link-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      overflow: hidden;
+    /* ── Empty state ────────────────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      color: #80868b;
+      font-size: 12px;
+      padding: 16px 10px;
+      line-height: 1.6;
     }
+
+    /* ── Loading ────────────────────────────────────────────────────────────── */
+    .loading { color: #80868b; font-size: 12px; padding: 12px 4px; }
   </style>
 </head>
 <body>
 
-<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
 <div class="header">
-  <span class="header-icon">🏷</span>
-  <h1>Docs Aggregator</h1>
+  <div class="header-left">🏷 Docs Aggregator</div>
+  <div class="header-right">
+    <button class="header-btn" onclick="loadSummary()" id="btn-refresh" title="Rescan document">
+      ⟳ Refresh
+    </button>
+    <button class="header-btn" onclick="syncAll()" id="btn-sync-all" title="Sync all linked tags">
+      ↑ Sync All
+    </button>
+  </div>
 </div>
 
 <div class="content">
 
-  <!-- ── Tag selector ──────────────────────────────────────────────────── -->
-  <div class="card">
-    <div class="card-header">
-      Active Tag
-      <button class="btn btn-secondary" id="btn-new-tag" onclick="toggleCreateForm()" style="padding:3px 8px;font-size:11px;">
-        + New Tag
-      </button>
-    </div>
-    <div class="card-body">
-      <div class="select-row">
-        <select id="tag-select" onchange="onTagSelected()">
-          <option value="">— select a tag —</option>
-        </select>
-      </div>
-      <div id="status-select" class="status"></div>
-
-      <!-- ── Tag detail ───────────────────────────────────────────────── -->
-      <div id="tag-detail">
-        <hr class="divider" style="margin:10px 0">
-
-        <div class="tag-meta">
-          <div class="color-swatch" id="detail-swatch"></div>
-          <span class="tag-name" id="detail-name"></span>
-        </div>
-
-        <div class="link-row" style="margin-bottom:6px;">
-          <span style="font-size:11px;color:#5f6368;flex-shrink:0;">Agg doc:</span>
-          <a id="detail-link" class="tag-doc-link" href="#" target="_blank">—</a>
-        </div>
-
-        <div class="excerpt-count" id="excerpt-count">Loading excerpts…</div>
-        <ul class="excerpt-list" id="excerpt-list"></ul>
-
-        <div class="actions">
-          <button class="btn btn-primary" onclick="applyTag()">
-            ✏️ Apply to Selection
-          </button>
-          <button class="btn btn-success" onclick="syncTag()">
-            ↑ Sync to Agg Doc
-          </button>
-          <button class="btn btn-danger" onclick="deleteTag()" style="margin-left:auto;">
-            🗑 Delete Tag
-          </button>
-        </div>
-        <div id="status-detail" class="status"></div>
-      </div>
-    </div>
+  <!-- ── Usage hint ─────────────────────────────────────────────────────────── -->
+  <div class="hint">
+    Write <code>[Tag Name]</code> as a list item, then indent child items beneath it — those become the synced excerpts.
   </div>
 
-  <!-- ── Sync all ───────────────────────────────────────────────────────── -->
-  <div class="card" id="sync-all-card" style="display:none;">
-    <div class="card-header">Sync All Tags</div>
-    <div class="card-body">
-      <p style="font-size:12px;color:#5f6368;margin-bottom:10px;">
-        Push every tagged excerpt in this document to its aggregation doc in one go.
-      </p>
-      <button class="btn btn-success" onclick="syncAll()" style="width:100%;justify-content:center;">
-        ↑ Sync All Tags Now
-      </button>
-      <div id="status-sync-all" class="status"></div>
-    </div>
+  <!-- ── Tags found in document ─────────────────────────────────────────────── -->
+  <div>
+    <div class="section-label">In This Document</div>
+    <div id="in-doc-list"><div class="loading">Scanning document…</div></div>
   </div>
 
-  <!-- ── Create tag form ────────────────────────────────────────────────── -->
-  <div class="card" id="create-form">
-    <div class="card-header">
-      Create New Tag
-      <button onclick="toggleCreateForm()" style="background:none;border:none;cursor:pointer;color:#5f6368;font-size:14px;line-height:1;">✕</button>
+  <!-- ── Defined tags not in document ──────────────────────────────────────── -->
+  <div id="not-in-doc-section" style="display:none">
+    <div class="section-label">Linked Tags (not in doc)</div>
+    <div id="not-in-doc-list" style="display:flex;flex-direction:column;gap:5px;"></div>
+  </div>
+
+  <!-- ── Sync all status ────────────────────────────────────────────────────── -->
+  <div id="status-sync-all" class="status"></div>
+
+  <!-- ── New tag button ─────────────────────────────────────────────────────── -->
+  <button class="btn btn-secondary btn-full" onclick="toggleCreateForm()" id="btn-new-tag">
+    + Link a Tag to an Aggregation Doc
+  </button>
+
+  <!-- ── Create / link tag form ─────────────────────────────────────────────── -->
+  <div class="create-card" id="create-form" style="display:none;">
+    <div class="create-card-header">
+      Link Tag to Aggregation Doc
+      <button onclick="toggleCreateForm()" style="background:none;border:none;cursor:pointer;color:#1a73e8;font-size:15px;line-height:1;">✕</button>
     </div>
-    <div class="card-body">
+    <div class="create-card-body">
       <div class="form-group">
         <label for="new-tag-name">Tag Name</label>
-        <input type="text" id="new-tag-name" placeholder="e.g. Research Notes">
+        <input type="text" id="new-tag-name" placeholder='Must match [tag] in document'>
       </div>
-
       <div class="form-group">
         <label for="new-agg-url">Aggregation Document URL</label>
-        <input type="url" id="new-agg-url" placeholder="Paste Google Docs URL here">
+        <input type="url" id="new-agg-url" placeholder="Paste Google Docs URL">
       </div>
-
       <div class="form-group">
         <label>Highlight Color</label>
-        <div class="color-grid" id="color-grid"></div>
+        <div class="color-grid" id="color-grid-main"></div>
       </div>
-
-      <div class="form-actions">
+      <div class="form-row">
         <button class="btn btn-secondary" onclick="toggleCreateForm()">Cancel</button>
-        <button class="btn btn-primary" onclick="createTag()">Create Tag</button>
+        <button class="btn btn-primary" onclick="submitCreateTag()">Link Tag</button>
       </div>
       <div id="status-create" class="status"></div>
     </div>
@@ -352,261 +398,380 @@
 </div><!-- /.content -->
 
 <script>
-  // ── State ──────────────────────────────────────────────────────────────────
+  // ── State ────────────────────────────────────────────────────────────────────
 
-  let allTags      = {};   // { tagId: { name, aggregationDocId, color, createdAt } }
-  let selectedColor = '';
-  let tagColors    = [];
+  let tagColors = [];
+  let selectedColorMain = '';
+  // Per-card selected color for the inline link forms.
+  const cardColors = {};
+  // Currently open card name.
+  let openCard = null;
 
-  // ── Init ───────────────────────────────────────────────────────────────────
+  // ── Init ─────────────────────────────────────────────────────────────────────
 
   window.onload = function () {
     google.script.run
       .withSuccessHandler(function (colors) {
         tagColors = colors;
-        buildColorGrid(colors);
-        selectedColor = colors[0].value;
+        selectedColorMain = colors[0] ? colors[0].value : '#FFF176';
+        buildColorGrid('color-grid-main', 'main');
+        loadSummary();
       })
       .getTagColors();
-
-    loadTags();
   };
 
-  // ── Tag loading ─────────────────────────────────────────────────────────────
+  // ── Load & render ─────────────────────────────────────────────────────────────
 
-  function loadTags(selectTagId) {
+  function loadSummary() {
+    setHeaderLoading(true);
+    document.getElementById('in-doc-list').innerHTML =
+      '<div class="loading">Scanning document…</div>';
+
     google.script.run
-      .withSuccessHandler(function (tags) {
-        allTags = tags;
-        rebuildSelect(selectTagId);
-        updateSyncAllVisibility();
-      })
+      .withSuccessHandler(renderSummary)
       .withFailureHandler(function (err) {
-        showStatus('status-select', err.message, 'error');
+        setHeaderLoading(false);
+        document.getElementById('in-doc-list').innerHTML =
+          '<div class="status error show">' + esc(err.message) + '</div>';
       })
-      .getTags();
+      .getDocumentTagSummary();
   }
 
-  function rebuildSelect(selectTagId) {
-    const sel = document.getElementById('tag-select');
-    const prev = selectTagId || sel.value;
-    sel.innerHTML = '<option value="">— select a tag —</option>';
+  function renderSummary(summary) {
+    setHeaderLoading(false);
 
-    const sorted = Object.entries(allTags).sort(([, a], [, b]) =>
-      a.name.localeCompare(b.name)
-    );
-
-    sorted.forEach(([id, tag]) => {
-      const opt = document.createElement('option');
-      opt.value = id;
-      opt.textContent = tag.name;
-      sel.appendChild(opt);
-    });
-
-    if (prev && allTags[prev]) {
-      sel.value = prev;
-      showTagDetail(prev);
+    // ── In-document tags ──
+    const inDocEl = document.getElementById('in-doc-list');
+    if (!summary.inDocument || summary.inDocument.length === 0) {
+      inDocEl.innerHTML =
+        '<div class="empty-state">No <code>[tags]</code> found in this document.<br>' +
+        'Add a list item like <strong>[My Tag]</strong> then indent content under it.</div>';
     } else {
-      hideTagDetail();
+      inDocEl.innerHTML = '';
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+      summary.inDocument.forEach(function (item) {
+        wrap.appendChild(buildTagCard(item));
+      });
+      inDocEl.appendChild(wrap);
+      // Re-open the previously open card.
+      if (openCard) {
+        const el = document.querySelector('[data-tag-name="' + CSS.escape(openCard) + '"]');
+        if (el) el.classList.add('open-init');
+      }
     }
-  }
 
-  // ── Tag selection ───────────────────────────────────────────────────────────
-
-  function onTagSelected() {
-    const tagId = document.getElementById('tag-select').value;
-    if (tagId) {
-      showTagDetail(tagId);
+    // ── Not-in-doc defined tags ──
+    const notInDocSection = document.getElementById('not-in-doc-section');
+    const notInDocList   = document.getElementById('not-in-doc-list');
+    if (summary.notInDocument && summary.notInDocument.length > 0) {
+      notInDocSection.style.display = 'block';
+      notInDocList.innerHTML = '';
+      summary.notInDocument.forEach(function (tag) {
+        notInDocList.appendChild(buildGhostTag(tag));
+      });
     } else {
-      hideTagDetail();
+      notInDocSection.style.display = 'none';
     }
   }
 
-  function showTagDetail(tagId) {
-    const tag = allTags[tagId];
-    if (!tag) return;
+  // ── Tag card builder ──────────────────────────────────────────────────────────
 
-    document.getElementById('detail-swatch').style.background = tag.color;
-    document.getElementById('detail-name').textContent = tag.name;
+  function buildTagCard(item) {
+    const card = document.createElement('div');
+    card.className = 'tag-card';
+    card.dataset.tagName = item.name;
 
-    const link = document.getElementById('detail-link');
-    link.href = 'https://docs.google.com/document/d/' + tag.aggregationDocId + '/edit';
-    link.textContent = 'Open aggregation document ↗';
+    // ── Header ──
+    const header = document.createElement('div');
+    header.className = 'tag-card-header';
 
-    document.getElementById('tag-detail').style.display = 'block';
-    clearStatus('status-detail');
-    loadExcerpts(tagId, tag.color);
-  }
+    const swatch = document.createElement('span');
+    swatch.className = 'swatch' + (item.defined ? '' : ' swatch-unlinked');
+    if (item.defined && item.color) swatch.style.background = item.color;
 
-  function hideTagDetail() {
-    document.getElementById('tag-detail').style.display = 'none';
-  }
+    const nameEl = document.createElement('span');
+    nameEl.className = 'tag-card-name';
+    nameEl.textContent = item.name;
 
-  // ── Excerpts ────────────────────────────────────────────────────────────────
+    const badge = document.createElement('span');
+    badge.className = 'badge' + (item.defined ? '' : ' badge-warn');
+    badge.textContent = item.excerpts.length;
+    badge.title = item.excerpts.length + ' excerpt' + (item.excerpts.length === 1 ? '' : 's');
 
-  function loadExcerpts(tagId, color) {
-    document.getElementById('excerpt-count').textContent = 'Loading…';
-    document.getElementById('excerpt-list').innerHTML = '';
+    const chevron = document.createElement('span');
+    chevron.className = 'chevron';
+    chevron.textContent = '›';
 
-    google.script.run
-      .withSuccessHandler(function (excerpts) {
-        renderExcerpts(excerpts, color);
-      })
-      .withFailureHandler(function (err) {
-        document.getElementById('excerpt-count').textContent = 'Error loading excerpts.';
-        showStatus('status-detail', err.message, 'error');
-      })
-      .getTaggedContent(tagId);
-  }
+    header.appendChild(swatch);
+    header.appendChild(nameEl);
+    if (!item.defined) {
+      const warn = document.createElement('span');
+      warn.style.cssText = 'font-size:11px;color:#b36b00;';
+      warn.textContent = 'not linked';
+      header.appendChild(warn);
+    }
+    header.appendChild(badge);
+    header.appendChild(chevron);
 
-  function renderExcerpts(excerpts, color) {
-    const count = document.getElementById('excerpt-count');
-    const list  = document.getElementById('excerpt-list');
-    list.innerHTML = '';
+    // ── Body ──
+    const body = document.createElement('div');
+    body.className = 'tag-card-body';
 
-    if (!excerpts || excerpts.length === 0) {
-      count.textContent = 'No tagged excerpts in this document.';
-      const li = document.createElement('li');
-      li.className = 'no-excerpts';
-      li.textContent = 'Select text and click "Apply to Selection" to tag it.';
-      list.appendChild(li);
-      return;
+    // Excerpt list.
+    if (item.excerpts.length === 0) {
+      const none = document.createElement('div');
+      none.className = 'no-excerpts';
+      none.textContent = 'No child items found under [' + item.name + '].';
+      body.appendChild(none);
+    } else {
+      const ul = document.createElement('ul');
+      ul.className = 'excerpt-list';
+      item.excerpts.forEach(function (text) {
+        const li = document.createElement('li');
+        li.className = 'excerpt-item';
+        if (item.color) {
+          li.style.borderLeftColor = item.color;
+          li.style.background = hexToRgba(item.color, 0.2);
+        }
+        li.textContent = text.length > 220 ? text.slice(0, 217) + '…' : text;
+        ul.appendChild(li);
+      });
+      body.appendChild(ul);
     }
 
-    count.textContent = excerpts.length + ' excerpt' + (excerpts.length === 1 ? '' : 's') + ' in this document';
+    // Actions.
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
 
-    excerpts.forEach(function (ex) {
-      const li = document.createElement('li');
-      li.className = 'excerpt-item';
-      li.style.borderLeftColor = color;
-      li.style.backgroundColor = hexToRgba(color, 0.25);
-      // Truncate long excerpts in the UI.
-      const display = ex.text.length > 200 ? ex.text.slice(0, 197) + '…' : ex.text;
-      li.textContent = display;
-      list.appendChild(li);
-    });
+    if (item.defined && item.tagId) {
+      const syncBtn = document.createElement('button');
+      syncBtn.className = 'btn btn-success';
+      syncBtn.textContent = '↑ Sync to Agg Doc';
+      const tagId = item.tagId;
+      syncBtn.onclick = function (e) { e.stopPropagation(); syncTag(tagId, item.name, body); };
+      actions.appendChild(syncBtn);
+
+      const unlinkBtn = document.createElement('button');
+      unlinkBtn.className = 'btn btn-danger';
+      unlinkBtn.textContent = '✕ Unlink';
+      unlinkBtn.title = 'Remove tag definition (does not affect document)';
+      unlinkBtn.onclick = function (e) {
+        e.stopPropagation();
+        if (confirm('Remove the link for "' + item.name + '"?\n\nThis only removes the aggregation doc association. Your [' + item.name + '] list items stay intact.')) {
+          deleteTag(tagId);
+        }
+      };
+      actions.appendChild(unlinkBtn);
+
+      // Per-sync status.
+      const statusEl = document.createElement('div');
+      statusEl.className = 'status';
+      statusEl.style.width = '100%';
+      body.appendChild(actions);
+      body.appendChild(statusEl);
+      // Store reference so syncTag can find it.
+      body.dataset.statusId = 'status-' + tagId;
+      statusEl.id = 'status-' + tagId;
+    } else {
+      // Unlinked — show inline link form.
+      body.appendChild(actions);
+      body.appendChild(buildLinkForm(item.name));
+    }
+
+    // Toggle expand/collapse.
+    header.onclick = function () {
+      const isOpen = body.classList.toggle('open');
+      chevron.classList.toggle('open', isOpen);
+      openCard = isOpen ? item.name : null;
+    };
+
+    card.appendChild(header);
+    card.appendChild(body);
+    return card;
   }
 
-  // ── Apply tag ───────────────────────────────────────────────────────────────
+  // ── Inline link form for unlinked tags ───────────────────────────────────────
 
-  function applyTag() {
-    const tagId = document.getElementById('tag-select').value;
-    if (!tagId) { showStatus('status-detail', 'Please select a tag first.', 'error'); return; }
+  function buildLinkForm(tagName) {
+    cardColors[tagName] = tagColors[0] ? tagColors[0].value : '#FFF176';
 
-    setLoading(true);
-    google.script.run
-      .withSuccessHandler(function () {
-        setLoading(false);
-        showStatus('status-detail', 'Tag applied!', 'success');
-        loadExcerpts(tagId, allTags[tagId].color);
-      })
-      .withFailureHandler(function (err) {
-        setLoading(false);
-        showStatus('status-detail', err.message, 'error');
-      })
-      .applyTagToSelection(tagId);
+    const form = document.createElement('div');
+    form.className = 'link-form';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'link-form-label';
+    lbl.textContent = 'Link to Aggregation Doc';
+    form.appendChild(lbl);
+
+    const urlInput = document.createElement('input');
+    urlInput.type = 'url';
+    urlInput.placeholder = 'Paste Google Docs URL';
+    urlInput.style.cssText = 'width:100%;border:1px solid #dadce0;border-radius:6px;padding:6px 10px;font-size:13px;margin-bottom:8px;';
+    form.appendChild(urlInput);
+
+    const colorLbl = document.createElement('div');
+    colorLbl.style.cssText = 'font-size:11px;font-weight:600;color:#5f6368;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;';
+    colorLbl.textContent = 'Highlight Color';
+    form.appendChild(colorLbl);
+
+    const gridId = 'color-grid-' + tagName.replace(/\W/g, '_');
+    const colorGrid = document.createElement('div');
+    colorGrid.className = 'color-grid';
+    colorGrid.id = gridId;
+    form.appendChild(colorGrid);
+
+    buildColorGridInEl(colorGrid, tagName);
+
+    const statusEl = document.createElement('div');
+    statusEl.className = 'status';
+
+    const linkBtn = document.createElement('button');
+    linkBtn.className = 'btn btn-primary';
+    linkBtn.style.cssText = 'margin-top:8px;width:100%;justify-content:center;';
+    linkBtn.textContent = 'Link Tag';
+    linkBtn.onclick = function () {
+      const url = urlInput.value.trim();
+      if (!url) { showEl(statusEl, 'Enter an aggregation doc URL.', 'error'); return; }
+      showEl(statusEl, 'Linking…', 'info');
+      linkBtn.disabled = true;
+      google.script.run
+        .withSuccessHandler(function () {
+          linkBtn.disabled = false;
+          showEl(statusEl, 'Linked! Refreshing…', 'success');
+          setTimeout(loadSummary, 700);
+        })
+        .withFailureHandler(function (err) {
+          linkBtn.disabled = false;
+          showEl(statusEl, err.message, 'error');
+        })
+        .createTag(tagName, url, cardColors[tagName]);
+    };
+
+    form.appendChild(linkBtn);
+    form.appendChild(statusEl);
+    return form;
   }
 
-  // ── Sync ────────────────────────────────────────────────────────────────────
+  // ── Ghost tag (defined but not in doc) ───────────────────────────────────────
 
-  function syncTag() {
-    const tagId = document.getElementById('tag-select').value;
-    if (!tagId) return;
+  function buildGhostTag(tag) {
+    const el = document.createElement('div');
+    el.className = 'ghost-tag';
 
-    setLoading(true);
-    showStatus('status-detail', 'Syncing…', 'info');
+    const swatch = document.createElement('span');
+    swatch.className = 'swatch';
+    swatch.style.background = tag.color;
+
+    const name = document.createElement('span');
+    name.className = 'tag-name';
+    name.textContent = tag.name;
+
+    const hint = document.createElement('span');
+    hint.style.cssText = 'font-size:11px;color:#bbb;';
+    hint.textContent = 'add [' + tag.name + '] to doc';
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del-btn';
+    delBtn.title = 'Remove tag definition';
+    delBtn.textContent = '✕';
+    delBtn.onclick = function () {
+      if (confirm('Remove the "' + tag.name + '" tag definition?')) {
+        deleteTag(tag.tagId);
+      }
+    };
+
+    el.appendChild(swatch);
+    el.appendChild(name);
+    el.appendChild(hint);
+    el.appendChild(delBtn);
+    return el;
+  }
+
+  // ── Sync ──────────────────────────────────────────────────────────────────────
+
+  function syncTag(tagId, tagName, cardBodyEl) {
+    const statusEl = document.getElementById('status-' + tagId);
+    if (statusEl) showEl(statusEl, 'Syncing…', 'info');
+    setHeaderLoading(true);
 
     google.script.run
       .withSuccessHandler(function (result) {
-        setLoading(false);
-        showStatus('status-detail',
-          'Synced ' + result.synced + ' excerpt' + (result.synced === 1 ? '' : 's') + ' to aggregation doc.',
-          'success');
+        setHeaderLoading(false);
+        if (statusEl) showEl(statusEl,
+          '✓ Synced ' + result.synced + ' excerpt' + (result.synced === 1 ? '' : 's') + '.',
+          'success'
+        );
       })
       .withFailureHandler(function (err) {
-        setLoading(false);
-        showStatus('status-detail', err.message, 'error');
+        setHeaderLoading(false);
+        if (statusEl) showEl(statusEl, err.message, 'error');
       })
       .syncTagToAggDoc(tagId);
   }
 
   function syncAll() {
-    setLoading(true);
-    showStatus('status-sync-all', 'Syncing all tags…', 'info');
+    setHeaderLoading(true);
+    showStatus('status-sync-all', 'Syncing all linked tags…', 'info');
 
     google.script.run
       .withSuccessHandler(function (res) {
-        setLoading(false);
+        setHeaderLoading(false);
         const synced = Object.values(res.results).reduce(function (s, r) { return s + r.synced; }, 0);
         const errCount = Object.keys(res.errors).length;
-        let msg = 'Done. ' + synced + ' excerpt' + (synced === 1 ? '' : 's') + ' synced.';
-        if (errCount > 0) msg += ' ' + errCount + ' tag(s) had errors.';
-        showStatus('status-sync-all', msg, errCount > 0 ? 'error' : 'success');
+        let msg = '✓ ' + synced + ' excerpt' + (synced === 1 ? '' : 's') + ' synced.';
+        if (errCount > 0) msg += ' ' + errCount + ' error(s) — check individual tags.';
+        showStatus('status-sync-all', msg, errCount ? 'error' : 'success');
       })
       .withFailureHandler(function (err) {
-        setLoading(false);
+        setHeaderLoading(false);
         showStatus('status-sync-all', err.message, 'error');
       })
       .syncAllTags();
   }
 
-  // ── Delete tag ──────────────────────────────────────────────────────────────
+  // ── Delete tag ────────────────────────────────────────────────────────────────
 
-  function deleteTag() {
-    const tagId = document.getElementById('tag-select').value;
-    if (!tagId) return;
-
-    const tag = allTags[tagId];
-    if (!confirm('Delete tag "' + tag.name + '"?\n\nThis will remove all highlights and named ranges for this tag in the current document. Content in the aggregation document is not affected.')) return;
-
-    setLoading(true);
+  function deleteTag(tagId) {
     google.script.run
-      .withSuccessHandler(function () {
-        setLoading(false);
-        showStatus('status-select', 'Tag "' + tag.name + '" deleted.', 'success');
-        document.getElementById('tag-select').value = '';
-        hideTagDetail();
-        loadTags();
-      })
+      .withSuccessHandler(function () { loadSummary(); })
       .withFailureHandler(function (err) {
-        setLoading(false);
-        showStatus('status-select', err.message, 'error');
+        showStatus('status-sync-all', err.message, 'error');
       })
       .deleteTag(tagId);
   }
 
-  // ── Create tag ──────────────────────────────────────────────────────────────
+  // ── Create form ───────────────────────────────────────────────────────────────
 
-  function toggleCreateForm() {
+  function toggleCreateForm(prefillName) {
     const form = document.getElementById('create-form');
     const visible = form.style.display !== 'none';
     form.style.display = visible ? 'none' : 'block';
     if (!visible) {
-      document.getElementById('new-tag-name').value = '';
+      document.getElementById('new-tag-name').value = prefillName || '';
       document.getElementById('new-agg-url').value = '';
       clearStatus('status-create');
-      setActiveColor(tagColors[0] ? tagColors[0].value : '');
+      setActiveColor('color-grid-main', 'main', tagColors[0] ? tagColors[0].value : '');
     }
   }
 
-  function createTag() {
-    const name   = document.getElementById('new-tag-name').value.trim();
-    const url    = document.getElementById('new-agg-url').value.trim();
-    const color  = selectedColor;
+  function submitCreateTag() {
+    const name  = document.getElementById('new-tag-name').value.trim();
+    const url   = document.getElementById('new-agg-url').value.trim();
+    const color = selectedColorMain;
 
-    if (!name) { showStatus('status-create', 'Please enter a tag name.', 'error'); return; }
-    if (!url)  { showStatus('status-create', 'Please enter an aggregation document URL.', 'error'); return; }
+    if (!name) { showStatus('status-create', 'Enter a tag name.', 'error'); return; }
+    if (!url)  { showStatus('status-create', 'Enter an aggregation doc URL.', 'error'); return; }
 
-    showStatus('status-create', 'Creating tag…', 'info');
+    showStatus('status-create', 'Linking…', 'info');
 
     google.script.run
       .withSuccessHandler(function (result) {
-        showStatus('status-create', 'Tag "' + result.name + '" created!', 'success');
-        // Reload tags and auto-select the new one.
-        loadTags(result.tagId);
+        showStatus('status-create', '✓ Tag "' + result.name + '" linked!', 'success');
         setTimeout(function () {
           toggleCreateForm();
-        }, 800);
+          loadSummary();
+        }, 700);
       })
       .withFailureHandler(function (err) {
         showStatus('status-create', err.message, 'error');
@@ -614,52 +779,60 @@
       .createTag(name, url, color);
   }
 
-  // ── Color grid ──────────────────────────────────────────────────────────────
+  // ── Color grids ───────────────────────────────────────────────────────────────
 
-  function buildColorGrid(colors) {
-    const grid = document.getElementById('color-grid');
-    grid.innerHTML = '';
-    colors.forEach(function (c, i) {
-      const div = document.createElement('div');
-      div.className = 'color-option' + (i === 0 ? ' active' : '');
-      div.style.background = c.value;
-      div.title = c.name;
-      div.dataset.color = c.value;
-      div.onclick = function () { setActiveColor(c.value); };
-      grid.appendChild(div);
+  function buildColorGrid(gridId, key) {
+    buildColorGridInEl(document.getElementById(gridId), key);
+  }
+
+  function buildColorGridInEl(el, key) {
+    el.innerHTML = '';
+    const initColor = key === 'main' ? selectedColorMain : (cardColors[key] || (tagColors[0] && tagColors[0].value));
+    tagColors.forEach(function (c) {
+      const dot = document.createElement('div');
+      dot.className = 'color-dot' + (c.value === initColor ? ' active' : '');
+      dot.style.background = c.value;
+      dot.title = c.name;
+      dot.dataset.color = c.value;
+      dot.onclick = function () { setActiveColor(el, key, c.value); };
+      el.appendChild(dot);
     });
   }
 
-  function setActiveColor(color) {
-    selectedColor = color;
-    document.querySelectorAll('.color-option').forEach(function (el) {
-      el.classList.toggle('active', el.dataset.color === color);
+  function setActiveColor(elOrId, key, color) {
+    const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+    if (key === 'main') {
+      selectedColorMain = color;
+    } else {
+      cardColors[key] = color;
+    }
+    el.querySelectorAll('.color-dot').forEach(function (d) {
+      d.classList.toggle('active', d.dataset.color === color);
     });
   }
 
-  // ── Sync all visibility ─────────────────────────────────────────────────────
+  // ── Utilities ─────────────────────────────────────────────────────────────────
 
-  function updateSyncAllVisibility() {
-    const card = document.getElementById('sync-all-card');
-    card.style.display = Object.keys(allTags).length > 0 ? 'block' : 'none';
+  function setHeaderLoading(on) {
+    document.getElementById('btn-refresh').disabled = on;
+    document.getElementById('btn-sync-all').disabled = on;
   }
-
-  // ── Utility ─────────────────────────────────────────────────────────────────
 
   function showStatus(id, msg, type) {
     const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'status ' + type + ' show';
+  }
+
+  function showEl(el, msg, type) {
     el.textContent = msg;
     el.className = 'status ' + type + ' show';
   }
 
   function clearStatus(id) {
     const el = document.getElementById(id);
-    el.className = 'status';
-    el.textContent = '';
-  }
-
-  function setLoading(on) {
-    document.querySelectorAll('.btn').forEach(function (b) { b.disabled = on; });
+    if (el) { el.className = 'status'; el.textContent = ''; }
   }
 
   function hexToRgba(hex, alpha) {
@@ -667,6 +840,12 @@
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
     return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+  }
+
+  function esc(str) {
+    return String(str).replace(/[&<>"']/g, function (c) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
   }
 </script>
 
