@@ -25,8 +25,6 @@
       top: 0;
       z-index: 10;
     }
-    .header-left { display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 500; }
-    .header-right { display: flex; gap: 5px; }
     .header-status {
       font-size: 11px;
       color: rgba(255,255,255,.8);
@@ -46,6 +44,30 @@
     }
     .header-btn:hover { background: rgba(255,255,255,.3); }
     .header-btn:disabled { opacity: .5; cursor: default; }
+
+    [data-tooltip] { position: relative; }
+    [data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,.72);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 400;
+      padding: 3px 7px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .1s;
+      z-index: 20;
+    }
+    [data-tooltip]:hover::after {
+      opacity: 1;
+      transition-delay: 100ms;
+    }
 
     .content {
       padding: 10px 12px;
@@ -140,29 +162,6 @@
       padding: 10px 11px;
     }
     .tag-card-body.open { display: block; }
-
-    .excerpt-list {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      margin-bottom: 10px;
-    }
-    .excerpt-item {
-      font-size: 12px;
-      line-height: 1.5;
-      padding: 5px 8px;
-      border-radius: 5px;
-      border-left: 3px solid #ccc;
-      background: #f8f9fa;
-      word-break: break-word;
-    }
-    .no-excerpts {
-      font-size: 12px;
-      color: #80868b;
-      font-style: italic;
-      padding: 3px 0 8px;
-    }
 
     .card-actions {
       display: flex;
@@ -351,14 +350,14 @@
 <div class="header">
   <!-- Main mode -->
   <div id="hdr-main" style="display:flex;align-items:center;width:100%;gap:5px;">
-    <button class="header-btn" id="btn-sync-refresh" onclick="syncAndRefresh()" title="Sync" style="flex-shrink:0;">
+    <button class="header-btn" id="btn-sync-refresh" onclick="syncAndRefresh()" data-tooltip="Sync" style="flex-shrink:0;">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
         <polyline points="23 4 23 10 17 10"/>
         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
       </svg>
     </button>
     <span class="header-status" id="header-status" style="flex:1;padding:0 6px;"></span>
-    <button class="header-btn" onclick="openSettings()" title="Settings" style="flex-shrink:0;">
+    <button class="header-btn" onclick="openSettings()" data-tooltip="Settings" style="flex-shrink:0;">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
         <circle cx="12" cy="12" r="3"/>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -617,11 +616,6 @@
         wrap.appendChild(buildTagCard(item));
       });
       inDocEl.appendChild(wrap);
-      // Re-open the previously open card.
-      if (openCard) {
-        const el = document.querySelector('[data-tag-name="' + CSS.escape(openCard) + '"]');
-        if (el) el.classList.add('open-init');
-      }
     }
 
     // ── Not-in-doc defined tags ──
@@ -636,6 +630,101 @@
     } else {
       notInDocSection.style.display = 'none';
     }
+  }
+
+  // ── Shared: aggregation doc section (linked view + edit view) ────────────────
+
+  /**
+   * Builds the aggregation doc sub-section used inside both buildTagCard and
+   * buildManageTagCard. Shows the linked doc as a named link with an X to switch
+   * to an edit view, or shows the edit view directly when unlinked.
+   */
+  function buildAggDocSection(tagName, aggDocId, aggDocName, isLinked) {
+    const wrap = document.createElement('div');
+
+    const label = document.createElement('div');
+    label.style.cssText = 'font-size:11px;font-weight:600;color:#5f6368;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;';
+    label.textContent = 'Aggregation Doc';
+    wrap.appendChild(label);
+
+    // Linked view: named link + X button
+    const linkedView = document.createElement('div');
+    linkedView.style.cssText = 'display:' + (isLinked ? 'flex' : 'none') + ';align-items:center;gap:6px;';
+
+    const docLink = document.createElement('a');
+    docLink.style.cssText = 'font-size:12px;color:#1a73e8;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    docLink.target = '_blank';
+    if (aggDocId) {
+      docLink.href = 'https://docs.google.com/document/d/' + aggDocId + '/edit';
+      docLink.textContent = aggDocName || aggDocId;
+    }
+
+    const xBtn = document.createElement('button');
+    xBtn.style.cssText = 'background:none;border:none;color:#bbb;cursor:pointer;font-size:13px;padding:0 2px;line-height:1;flex-shrink:0;';
+    xBtn.textContent = '✕';
+    xBtn.title = 'Change aggregation doc';
+    xBtn.onmouseenter = function () { this.style.color = '#d93025'; };
+    xBtn.onmouseleave = function () { this.style.color = '#bbb'; };
+    xBtn.onclick = function (e) {
+      e.stopPropagation();
+      linkedView.style.display = 'none';
+      editView.style.display = 'block';
+    };
+
+    linkedView.appendChild(docLink);
+    linkedView.appendChild(xBtn);
+
+    // Edit view: URL input + Save button
+    const editView = document.createElement('div');
+    editView.style.display = isLinked ? 'none' : 'block';
+
+    const urlInput = document.createElement('input');
+    urlInput.type = 'url';
+    urlInput.placeholder = 'Paste Google Docs URL';
+    urlInput.style.cssText = 'width:100%;border:1px solid #dadce0;border-radius:6px;padding:6px 10px;font-size:13px;margin-bottom:8px;box-sizing:border-box;';
+    if (aggDocId) {
+      urlInput.value = 'https://docs.google.com/document/d/' + aggDocId + '/edit';
+    }
+    editView.appendChild(urlInput);
+
+    const statusEl = document.createElement('div');
+    statusEl.className = 'status';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'btn btn-primary';
+    saveBtn.style.cssText = 'width:100%;justify-content:center;';
+    saveBtn.textContent = isLinked ? 'Save' : 'Link Tag';
+    saveBtn.onclick = function () {
+      const url = urlInput.value.trim();
+      if (!url) { showEl(statusEl, 'Enter an aggregation doc URL.', 'error'); return; }
+      showEl(statusEl, 'Saving…', 'info');
+      saveBtn.disabled = true;
+      google.script.run
+        .withSuccessHandler(function (result) {
+          saveBtn.disabled = false;
+          statusEl.className = 'status';
+          docLink.href = 'https://docs.google.com/document/d/' + result.aggregationDocId + '/edit';
+          docLink.textContent = result.aggregationDocName || result.aggregationDocId;
+          linkedView.style.display = 'flex';
+          editView.style.display = 'none';
+        })
+        .withFailureHandler(function (err) {
+          saveBtn.disabled = false;
+          showEl(statusEl, err.message, 'error');
+        })
+        .createTag(tagName, url);
+    };
+
+    editView.appendChild(saveBtn);
+    editView.appendChild(statusEl);
+
+    wrap.appendChild(linkedView);
+    wrap.appendChild(editView);
+    wrap.showEditView = function () {
+      linkedView.style.display = 'none';
+      editView.style.display = 'block';
+    };
+    return wrap;
   }
 
   // ── Tag card builder ──────────────────────────────────────────────────────────
@@ -676,91 +765,14 @@
     const body = document.createElement('div');
     body.className = 'tag-card-body';
 
-    // Aggregation doc section.
-    const aggLabel = document.createElement('div');
-    aggLabel.style.cssText = 'font-size:11px;font-weight:600;color:#5f6368;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;';
-    aggLabel.textContent = 'Aggregation Doc';
-    body.appendChild(aggLabel);
+    body.appendChild(buildAggDocSection(item.name, item.aggregationDocId, item.aggregationDocName, item.defined));
 
-    const isLinked = item.defined && item.aggregationDocId;
-
-    // --- Linked view: named link + X ---
-    const linkedView = document.createElement('div');
-    linkedView.style.cssText = 'display:' + (isLinked ? 'flex' : 'none') + ';align-items:center;gap:6px;';
-
-    const docLink = document.createElement('a');
-    docLink.style.cssText = 'font-size:12px;color:#1a73e8;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-    docLink.target = '_blank';
-    if (item.aggregationDocId) {
-      docLink.href = 'https://docs.google.com/document/d/' + item.aggregationDocId + '/edit';
-      docLink.textContent = item.aggregationDocName || item.aggregationDocId;
+    // Restore open state across refreshes.
+    if (openCard === item.name) {
+      body.classList.add('open');
+      chevron.classList.add('open');
     }
 
-    const removeBtn = document.createElement('button');
-    removeBtn.style.cssText = 'background:none;border:none;color:#bbb;cursor:pointer;font-size:13px;padding:0 2px;line-height:1;flex-shrink:0;';
-    removeBtn.textContent = '✕';
-    removeBtn.title = 'Change aggregation doc';
-    removeBtn.onmouseenter = function () { this.style.color = '#d93025'; };
-    removeBtn.onmouseleave = function () { this.style.color = '#bbb'; };
-
-    linkedView.appendChild(docLink);
-    linkedView.appendChild(removeBtn);
-
-    // --- Edit view: URL input + Save ---
-    const editView = document.createElement('div');
-    editView.style.display = isLinked ? 'none' : 'block';
-
-    const urlInput = document.createElement('input');
-    urlInput.type = 'url';
-    urlInput.placeholder = 'Paste Google Docs URL';
-    urlInput.style.cssText = 'width:100%;border:1px solid #dadce0;border-radius:6px;padding:6px 10px;font-size:13px;margin-bottom:8px;box-sizing:border-box;';
-    if (item.aggregationDocId) {
-      urlInput.value = 'https://docs.google.com/document/d/' + item.aggregationDocId + '/edit';
-    }
-    editView.appendChild(urlInput);
-
-    const statusEl = document.createElement('div');
-    statusEl.className = 'status';
-
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'btn btn-primary';
-    saveBtn.style.cssText = 'width:100%;justify-content:center;';
-    saveBtn.textContent = item.defined ? 'Save' : 'Link Tag';
-    saveBtn.onclick = function () {
-      const url = urlInput.value.trim();
-      if (!url) { showEl(statusEl, 'Enter an aggregation doc URL.', 'error'); return; }
-      showEl(statusEl, 'Saving…', 'info');
-      saveBtn.disabled = true;
-      google.script.run
-        .withSuccessHandler(function (result) {
-          saveBtn.disabled = false;
-          statusEl.className = 'status';
-          docLink.href = 'https://docs.google.com/document/d/' + result.aggregationDocId + '/edit';
-          docLink.textContent = result.aggregationDocName || result.aggregationDocId;
-          linkedView.style.display = 'flex';
-          editView.style.display = 'none';
-        })
-        .withFailureHandler(function (err) {
-          saveBtn.disabled = false;
-          showEl(statusEl, err.message, 'error');
-        })
-        .createTag(item.name, url);
-    };
-
-    editView.appendChild(saveBtn);
-    editView.appendChild(statusEl);
-
-    // X toggles to edit view
-    removeBtn.onclick = function (e) {
-      e.stopPropagation();
-      linkedView.style.display = 'none';
-      editView.style.display = 'block';
-    };
-
-    body.appendChild(linkedView);
-    body.appendChild(editView);
-
-    // Toggle expand/collapse.
     header.onclick = function () {
       const isOpen = body.classList.toggle('open');
       chevron.classList.toggle('open', isOpen);
@@ -979,88 +991,8 @@
     const body = document.createElement('div');
     body.className = 'tag-card-body';
 
-    // Aggregation doc label
-    const aggLabel = document.createElement('div');
-    aggLabel.style.cssText = 'font-size:11px;font-weight:600;color:#5f6368;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;';
-    aggLabel.textContent = 'Aggregation Doc';
-    body.appendChild(aggLabel);
-
-    const isLinked = !!tag.aggregationDocId;
-
-    // Linked view
-    const linkedView = document.createElement('div');
-    linkedView.style.cssText = 'display:' + (isLinked ? 'flex' : 'none') + ';align-items:center;gap:6px;margin-bottom:10px;';
-
-    const docLink = document.createElement('a');
-    docLink.style.cssText = 'font-size:12px;color:#1a73e8;text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-    docLink.target = '_blank';
-    if (tag.aggregationDocId) {
-      docLink.href = 'https://docs.google.com/document/d/' + tag.aggregationDocId + '/edit';
-      docLink.textContent = tag.aggregationDocName || tag.aggregationDocId;
-    }
-
-    const removeBtn = document.createElement('button');
-    removeBtn.style.cssText = 'background:none;border:none;color:#bbb;cursor:pointer;font-size:13px;padding:0 2px;line-height:1;flex-shrink:0;';
-    removeBtn.textContent = '✕';
-    removeBtn.title = 'Change aggregation doc';
-    removeBtn.onmouseenter = function () { this.style.color = '#d93025'; };
-    removeBtn.onmouseleave = function () { this.style.color = '#bbb'; };
-
-    linkedView.appendChild(docLink);
-    linkedView.appendChild(removeBtn);
-
-    // Edit view
-    const editView = document.createElement('div');
-    editView.style.cssText = 'display:' + (isLinked ? 'none' : 'block') + ';margin-bottom:10px;';
-
-    const urlInput = document.createElement('input');
-    urlInput.type = 'url';
-    urlInput.placeholder = 'Paste Google Docs URL';
-    urlInput.style.cssText = 'width:100%;border:1px solid #dadce0;border-radius:6px;padding:6px 10px;font-size:13px;margin-bottom:8px;box-sizing:border-box;';
-    if (tag.aggregationDocId) {
-      urlInput.value = 'https://docs.google.com/document/d/' + tag.aggregationDocId + '/edit';
-    }
-    editView.appendChild(urlInput);
-
-    const linkStatusEl = document.createElement('div');
-    linkStatusEl.className = 'status';
-
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'btn btn-primary';
-    saveBtn.style.cssText = 'width:100%;justify-content:center;';
-    saveBtn.textContent = isLinked ? 'Save' : 'Link Tag';
-    saveBtn.onclick = function () {
-      const url = urlInput.value.trim();
-      if (!url) { showEl(linkStatusEl, 'Enter an aggregation doc URL.', 'error'); return; }
-      showEl(linkStatusEl, 'Saving…', 'info');
-      saveBtn.disabled = true;
-      google.script.run
-        .withSuccessHandler(function (result) {
-          saveBtn.disabled = false;
-          linkStatusEl.className = 'status';
-          docLink.href = 'https://docs.google.com/document/d/' + result.aggregationDocId + '/edit';
-          docLink.textContent = result.aggregationDocName || result.aggregationDocId;
-          linkedView.style.display = 'flex';
-          editView.style.display = 'none';
-        })
-        .withFailureHandler(function (err) {
-          saveBtn.disabled = false;
-          showEl(linkStatusEl, err.message, 'error');
-        })
-        .createTag(tag.name, url);
-    };
-
-    editView.appendChild(saveBtn);
-    editView.appendChild(linkStatusEl);
-
-    removeBtn.onclick = function (e) {
-      e.stopPropagation();
-      linkedView.style.display = 'none';
-      editView.style.display = 'block';
-    };
-
-    body.appendChild(linkedView);
-    body.appendChild(editView);
+    const aggDocSection = buildAggDocSection(tag.name, tag.aggregationDocId, tag.aggregationDocName, !!tag.aggregationDocId);
+    body.appendChild(aggDocSection);
 
     // Action buttons row
     const delStatusEl = document.createElement('div');
@@ -1074,8 +1006,7 @@
     changeLinkBtn.textContent = 'Change Link';
     changeLinkBtn.onclick = function (e) {
       e.stopPropagation();
-      linkedView.style.display = 'none';
-      editView.style.display = 'block';
+      aggDocSection.showEditView();
     };
 
     const delBtn = document.createElement('button');
