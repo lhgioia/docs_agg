@@ -395,10 +395,10 @@ function upsertSection_(body, startMarker, endMarker, tag, sourceDocName, source
   const filePath   = getFilePath_(sourceDocId) || sourceDocName;
   const linkText   = '[' + filePath + ']';
   const tagText    = '[' + tag.name + ']';
-  const metaStr    = linkText + '   ' + tagText + '   ' + new Date().toLocaleString();
+  const metaStr    = linkText + '   ' + tagText + '   ' + new Date().toLocaleString().replace(',', '');
   const meta       = body.insertParagraph(insertIdx++, metaStr);
   const metaText   = meta.editAsText();
-  metaText.setFontSize(9).setForegroundColor('#777777').setItalic(false);
+  metaText.setFontSize(11).setForegroundColor('#777777');
   metaText.setLinkUrl(0, linkText.length - 1, sourceDocUrl);
   metaText.setForegroundColor(0, linkText.length - 1, '#1155CC');
   meta.setSpacingAfter(6);
