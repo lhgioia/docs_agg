@@ -292,7 +292,7 @@ function syncTagToAggDoc(tagId) {
 
   if (excerpts.length > 0) {
     upsertSection_(body, startMarker, endMarker, tag,
-      sourceDoc.getName(), sourceDoc.getUrl(), excerpts);
+      sourceDoc.getName(), sourceDoc.getUrl(), sourceDocId, excerpts);
   } else {
     removeSection_(body, startMarker, endMarker);
   }
@@ -326,6 +326,26 @@ function getDocumentInfo() {
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
+/**
+ * Returns the file path up to 2 parent directories deep, e.g.
+ * "Grandparent/Parent/Filename". Falls back to just the filename if
+ * parent folders are not accessible.
+ */
+function getFilePath_(fileId) {
+  try {
+    const file = DriveApp.getFileById(fileId);
+    const name = file.getName();
+    const p1It = file.getParents();
+    if (!p1It.hasNext()) return name;
+    const p1 = p1It.next();
+    const p2It = p1.getParents();
+    if (!p2It.hasNext()) return p1.getName() + '/' + name;
+    return p2It.next().getName() + '/' + p1.getName() + '/' + name;
+  } catch (e) {
+    return null;
+  }
+}
+
 function extractDocId_(urlOrId) {
   const match = urlOrId.match(/\/d\/([a-zA-Z0-9_-]+)/);
   return match ? match[1] : urlOrId.trim();
@@ -341,7 +361,7 @@ function extractDocId_(urlOrId) {
  *
  * On first write: appends markers and content at the end of the body.
  */
-function upsertSection_(body, startMarker, endMarker, tag, sourceDocName, sourceDocUrl, excerpts) {
+function upsertSection_(body, startMarker, endMarker, tag, sourceDocName, sourceDocUrl, sourceDocId, excerpts) {
   let startIdx = -1;
   let endIdx = -1;
 
@@ -372,42 +392,38 @@ function upsertSection_(body, startMarker, endMarker, tag, sourceDocName, source
     }
 
     const sP = body.appendParagraph(startMarker);
-    sP.editAsText().setFontSize(6).setForegroundColor('#CCCCCC');
+    sP.editAsText().setFontSize(1).setForegroundColor('#FFFFFF');
     sP.setSpacingAfter(0);
 
     const eP = body.appendParagraph(endMarker);
-    eP.editAsText().setFontSize(6).setForegroundColor('#CCCCCC');
+    eP.editAsText().setFontSize(1).setForegroundColor('#FFFFFF');
     eP.setSpacingBefore(0);
 
     // End marker is the last child; insert content before it.
     insertIdx = body.getNumChildren() - 1;
   }
 
-  // Insert heading.
-  const heading = body.insertParagraph(insertIdx++, '');
-  heading.setHeading(DocumentApp.ParagraphHeading.HEADING2);
-  heading.setSpacingBefore(8);
-  const hText = heading.editAsText();
-  hText.insertText(0, '  ' + tag.name + ' — ' + sourceDocName);
-  hText.setBackgroundColor(0, 0, tag.color);
-  if (hText.getText().length > 1) {
-    hText.setForegroundColor(1, hText.getText().length - 1, '#222222');
-  }
-
   // Insert source + timestamp line.
-  const meta = body.insertParagraph(
-    insertIdx++,
-    'Source: ' + sourceDocUrl + '   |   Synced: ' + new Date().toLocaleString()
-  );
-  meta.editAsText().setFontSize(8).setForegroundColor('#777777').setItalic(true);
+  // Link text is the file path (up to 2 parent dirs), followed by sync date and tag name.
+  const filePath   = getFilePath_(sourceDocId) || sourceDocName;
+  const linkText   = '[' + filePath + ']';
+  const tagText    = '[' + tag.name + ']';
+  const metaStr    = linkText + '   ' + tagText + '   ' + new Date().toLocaleString();
+  const meta       = body.insertParagraph(insertIdx++, metaStr);
+  const metaText   = meta.editAsText();
+  metaText.setFontSize(9).setForegroundColor('#777777').setItalic(false);
+  metaText.setLinkUrl(0, linkText.length - 1, sourceDocUrl);
+  metaText.setForegroundColor(0, linkText.length - 1, '#1155CC');
   meta.setSpacingAfter(6);
 
   // Insert excerpts using element.copy() so all inline formatting, glyph type,
   // and list structure are preserved without manual attribute copying.
   // Nesting level is normalized to be relative to the [tag] marker.
   excerpts.forEach(function ({ element, level }) {
+    const glyphType = element.getGlyphType();
     const li = body.insertListItem(insertIdx++, element.copy());
     li.setNestingLevel(level || 0);
+    li.setGlyphType(glyphType);
     li.setSpacingBefore(2);
     li.setSpacingAfter(2);
   });
