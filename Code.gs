@@ -18,17 +18,6 @@
 
 const TAGS_PROP_KEY = 'DOCSAGG_TAGS_V1';
 
-const TAG_COLORS = [
-  { name: 'Yellow', value: '#FFF176' },
-  { name: 'Blue',   value: '#BBDEFB' },
-  { name: 'Green',  value: '#C8E6C9' },
-  { name: 'Pink',   value: '#F48FB1' },
-  { name: 'Orange', value: '#FFCC80' },
-  { name: 'Purple', value: '#CE93D8' },
-  { name: 'Teal',   value: '#80DEEA' },
-  { name: 'Red',    value: '#EF9A9A' },
-];
-
 // ── Add-on lifecycle ──────────────────────────────────────────────────────────
 
 function onOpen(e) {
@@ -63,10 +52,9 @@ function saveTags_(tags) {
 
 /**
  * Creates or updates a tag definition.
- * If a tag with the same name already exists, its aggregation doc and color
- * are updated (upsert by name).
+ * If a tag with the same name already exists, its aggregation doc is updated (upsert by name).
  */
-function createTag(name, aggDocUrl, color) {
+function createTag(name, aggDocUrl) {
   name = name.trim();
   if (!name) throw new Error('Tag name cannot be empty.');
 
@@ -92,7 +80,6 @@ function createTag(name, aggDocUrl, color) {
   tags[tagId] = {
     name,
     aggregationDocId: aggDocId,
-    color: color || TAG_COLORS[0].value,
     createdAt: (tags[tagId] && tags[tagId].createdAt) || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -316,8 +303,6 @@ function syncAllTags() {
 }
 
 // ── Misc ──────────────────────────────────────────────────────────────────────
-
-function getTagColors() { return TAG_COLORS; }
 
 function getDocumentInfo() {
   const doc = DocumentApp.getActiveDocument();
