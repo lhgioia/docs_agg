@@ -306,6 +306,9 @@
 
 <div class="content">
 
+  <!-- ── Top-level error banner ────────────────────────────────────────────── -->
+  <div id="status-top" class="status"></div>
+
   <!-- ── Initial loader (first open only) ──────────────────────────────────── -->
   <div id="initial-loader" class="loading" style="padding:20px 4px;text-align:center;">Loading…</div>
 
@@ -348,9 +351,6 @@
     <div class="section-label">Unused tags</div>
     <div id="not-in-doc-list" style="display:flex;flex-direction:column;gap:5px;"></div>
   </div>
-
-  <!-- ── Sync all status ────────────────────────────────────────────────────── -->
-  <div id="status-sync-all" class="status"></div>
 
   <!-- ── Usage hint ─────────────────────────────────────────────────────────── -->
   <div class="hint">
@@ -615,17 +615,20 @@
     google.script.run
       .withSuccessHandler(function (res) {
         setHeaderLoading(false);
-        setHeaderStatus('');
-        const synced = Object.values(res.results).reduce(function (s, r) { return s + r.synced; }, 0);
         const errCount = Object.keys(res.errors).length;
-        let msg = '✓ ' + synced + ' excerpt' + (synced === 1 ? '' : 's') + ' synced.';
-        if (errCount > 0) msg += ' ' + errCount + ' error(s) — check individual tags.';
-        showStatus('status-sync-all', msg, errCount ? 'error' : 'success');
+        if (errCount > 0) {
+          setHeaderStatus('');
+          const synced = Object.values(res.results).reduce(function (s, r) { return s + r.synced; }, 0);
+          showStatus('status-top', synced + ' synced, ' + errCount + ' error(s) — check individual tags.', 'error');
+        } else {
+          const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          setHeaderStatus('Synced at ' + time);
+        }
       })
       .withFailureHandler(function (err) {
         setHeaderLoading(false);
         setHeaderStatus('');
-        showStatus('status-sync-all', err.message, 'error');
+        showStatus('status-top', err.message, 'error');
       })
       .syncAllTags();
   }
@@ -636,7 +639,7 @@
     google.script.run
       .withSuccessHandler(function () { loadSummary(); })
       .withFailureHandler(function (err) {
-        showStatus('status-sync-all', err.message, 'error');
+        showStatus('status-top', err.message, 'error');
       })
       .deleteTag(tagId);
   }
